@@ -169,6 +169,7 @@ class Battery:
         """
         if not self.in_use:
             self.charge_level = min(self.charge_level + self.max_rate * minutes, 100)
+            
 # 充电环境类
 class ChargingEnv(gym.Env):
     """
