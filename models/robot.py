@@ -19,15 +19,15 @@ class Robot:
         self.swap_time = swap_time
         self.battery = Battery(
             voltage=800, # 电池架构：800V
-            capacity_kwh=200, # 电池容量：200kWh
+            capacity=200, # 电池容量：200kWh
             soc=100, # 初始电量：100%
             state='full' # 状态: full、nonfull
         )
         self.state = 'available'  # available, gocar, swapping, needswap, discharging, gohome
-        self.target = None  # 目标车辆
+        self.target = target  # 目标车辆
         self.target_point = None  # 目标车辆停车点
         self.swap_timer = 0  # 换电计时
-        self.min_soc = self.cal_distance() * 100 / (5000 * self.battery.capacity)
+        self.min_soc = 15 # self.cal_distance() * 100 / (5000 * self.battery.capacity)
 
     def set_state(self, state):
         assert state in ['gocar', 'discharging', 'available', 'swapping', 'gohome','needswap'], "Invalid state"
@@ -37,7 +37,7 @@ class Robot:
         """按步长更新机器人状态"""
         if self.state == 'gocar' and self.target is not None:
             self.move_toward_target(self.target, time_step)
-            if self.check_arrival(self.target):
+            if self.check_arrival(self.target_point):
                 self.x, self.y = self.target.parking_spot  # 精确对齐
                 self.state = 'discharging'
             if self.battery.soc <= self.min_soc:
@@ -57,7 +57,7 @@ class Robot:
 
         elif self.state == 'gohome':
             self.go_home(time_step)
-            if self.check_arrival(self.target): 
+            if self.check_arrival(self.target_point): 
                 self.x, self.y = self.home_x, self.home_y
                 self.state = 'needswap'
                 self.target = None
@@ -83,7 +83,7 @@ class Robot:
             self.y += dy / distance * move_dist
             # 假设每千米消耗0.2度电
             if self.battery:
-                self.battery.move_cost(move_dist  / 5000)
+                self.battery.discharge_kwh(move_dist  / 5000)
     
 
     def cal_distance(self,target_point):
@@ -95,16 +95,15 @@ class Robot:
         
     def check_arrival(self, target_point):
         """检查是否到达目标"""
-        if self.cal_distance(target_point) < 1e-1:
+        if self.cal_distance(target_point) < 1:
             return True
         return False
 
     def assign_task(self, target_vehicle):
         """分配服务车辆任务"""
-        self.target_vehicle = target_vehicle
-        self.target = (target_vehicle.x, target_vehicle.y)
-        self.state = 'moving'
-        self.in_action = True
+        self.target = target_vehicle
+        self.target_point = (target_vehicle.parking_spot[0], target_vehicle.parking_spot[1])
+        self.state = 'gocar'
 
     def go_home(self,time_step):
         """回到充电站"""
@@ -117,4 +116,4 @@ class Robot:
             self.y += dy / distance * move_dist
             # 假设每千米消耗0.2度电
             if self.battery:
-                self.battery.move_cost(move_dist  / 5000)
+                self.battery.discharge_kwh(move_dist  / 5000)

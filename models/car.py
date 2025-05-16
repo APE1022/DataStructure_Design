@@ -32,7 +32,7 @@ class Car:
             self.waittime += step_time
         elif self.state == 'charging':
             # 充电逻辑
-            if self.battery.get_soc() >= 100:
+            if self.battery.get_soc() >= self.required_soc:
                 self.state = 'completed'
         else:
             # 其他状态下不更新电池状态
