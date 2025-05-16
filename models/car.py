@@ -13,7 +13,7 @@ class Car:
             soc=np.random.uniform(5, 50), # 到达电量：5-50%，均匀分布
             state='nonfull' 
         )
-        self.state = 'needcharge' # 'charging', 'completed', 'needcharge'
+        self.state = 'needcharge' # 'charging', 'completed', 'needcharge', 'failed'
         # 离开所需电量：70-100%，正态分布
         self.required_soc = np.clip(np.random.normal(85, 10), 70, 100)
         # 所需电量
@@ -22,13 +22,16 @@ class Car:
         self.time = 0
         self.waittime = 0
 
+    def set_state(self, state):
+        assert state in ['charging', 'completed', 'needcharge', 'failed'], "Invalid state"
+        self.state = state
+
     def update(self, step_time=0.1):
         self.time += step_time
         if self.state == 'needcharge':
             self.waittime += step_time
         elif self.state == 'charging':
-            # 充电
-            # TODO
+            # 充电逻辑
             if self.battery.get_soc() >= 100:
                 self.state = 'completed'
         else:
