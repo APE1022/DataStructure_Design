@@ -97,7 +97,7 @@ class Robot:
         
     def check_arrival(self, target_point):
         """检查是否到达目标"""
-        if self.cal_distance(target_point) < 1:
+        if self.cal_distance(target_point) < self.speed * 1:
             return True
         return False
 

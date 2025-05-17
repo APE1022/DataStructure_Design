@@ -9,7 +9,7 @@ class ParkEnv:
     """
     园区自动充电机器人调度环境
     """
-    def __init__(self, park_size=(100, 100), n_robots=4, n_vehicles=10, n_batteries=3):
+    def __init__(self, park_size=(100, 100), n_robots=4, n_vehicles=10, n_batteries=3, time_step=0.1):
         self.park_size = park_size  # 场地大小
         self.max_robots = n_robots  # 最大机器人数量
         self.max_vehicles = n_vehicles
@@ -45,10 +45,10 @@ class ParkEnv:
         self.failed_vehicles = []
 
         self.time = 0  # 当前仿真时间（秒）
-        self.time_step = 0.1  # 时间步长（秒）
+        self.time_step = time_step  # 时间步长（秒）
 
-    def random_generate_vehicles(self):
-        if random.random() < 0.01 and self.n_vehicles < self.max_vehicles:
+    def random_generate_vehicles(self, ):
+        if random.random() < 0.001 and self.n_vehicles < self.max_vehicles:
             # 离开时间（45~120min，高斯分布）
             stay = int(np.clip(np.random.normal(90, 20), 45, 120)) * 60
             # 停车点
@@ -60,6 +60,7 @@ class ParkEnv:
                 )
             self.needcharge_vehicles.append(car)
             self.vehicles_index += 1
+            self.n_vehicles += 1
         else:
             pass
 
@@ -81,9 +82,11 @@ class ParkEnv:
             if car.state == 'completed':
                 self.completed_vehicles.append(car)
                 self.needcharge_vehicles.remove(car)
+                self.n_vehicles -= 1
             elif car.state == 'failed':
                 self.failed_vehicles.append(car)
                 self.needcharge_vehicles.remove(car)
+                self.n_vehicles -= 1
         for car in self.charging_vehicles:
             car.update(self.time_step)
         # 电池站为所有电池充电
@@ -96,9 +99,13 @@ class ParkEnv:
         """
         return {
             "time": self.time,
-            "robots": [(r.x, r.y, r.state,r.battery.soc) for r in self.robots],
-            "completed_vehicles": [(v.parking_spot, v.battery.soc, v.required_soc, v.state) for v in self.completed_vehicles],
-            # "needcharge_vehicles": [(v.parking_spot, v.battery.soc, v.required_soc, v.state) for v in self.needcharge_vehicles],
-            # "charging_vehicles": [(v.parking_spot, v.battery.soc, v.required_soc, v.state) for v in self.charging_vehicles],
+            # "robots": [(r.x, r.y, r.state,r.battery.soc) for r in self.robots],
+            "completed_vehicles_num": len(self.completed_vehicles),
+            "failed_vehicles_num": len(self.failed_vehicles),
+            "needcharge_vehicles_num": len(self.needcharge_vehicles),
+            "charging_vehicles_num": len(self.charging_vehicles),
+            # "completed_vehicles_num": [(v.parking_spot, v.battery.soc, v.required_soc, v.state) for v in self.completed_vehicles.count()],
+            # "needcharge_vehicles_num": [(v.parking_spot, v.battery.soc, v.required_soc, v.state) for v in self.needcharge_vehicles],
+            # "charging_vehicles_num": [(v.parking_spot, v.battery.soc, v.required_soc, v.state) for v in self.charging_vehicles],
             "battery_station": self.battery_station.get_status()
         }
