@@ -39,12 +39,12 @@ class TaskStrategy:
                 target_vehicle = None
                 for v in self.env.needcharge_vehicles:
                     if v.state == 'needcharge':
-                        v.set_state('charging')
                         dist = abs(robot.x - v.parking_spot[0]) + abs(robot.y - v.parking_spot[1])
                         if dist < min_dist:
                             min_dist = dist
                             target_vehicle = v
                 if target_vehicle:
+                    target_vehicle.set_state('charging')
                     robot.assign_task(target_vehicle)
 
     def max_demand_task(self):
@@ -53,15 +53,15 @@ class TaskStrategy:
         """
         for robot in self.env.robots:
             if robot.state == 'available':
-                max_gap = -float('-inf')
+                max_gap = 0
                 target_vehicle = None
                 for v in self.env.needcharge_vehicles:
                     if v.state == 'needcharge':
-                        v.set_state('charging')
                         if v.battery_gap > max_gap:
                             max_gap = v.battery_gap
                             target_vehicle = v
                 if target_vehicle:
+                    target_vehicle.set_state('charging')
                     robot.assign_task(target_vehicle)
 
     def max_priority_task(self):
@@ -74,7 +74,6 @@ class TaskStrategy:
                 target_vehicle = None
                 for v in self.env.needcharge_vehicles:
                     if v.state == 'needcharge':
-                        v.set_state('charging')
                         # 优先级 = 电量缺口 / 剩余离开时间
                         time_left = max(1, v.departure_time - self.env.time)  # 防止除0
                         priority = v.battery_gap / time_left
@@ -82,4 +81,5 @@ class TaskStrategy:
                             max_priority = priority
                             target_vehicle = v
                 if target_vehicle:
+                    target_vehicle.set_state('charging')
                     robot.assign_task(target_vehicle)

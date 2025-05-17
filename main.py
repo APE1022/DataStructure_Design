@@ -16,7 +16,7 @@ def main():
         n_vehicles = 40
         n_batteries = 12
     elif scale == 'large':
-        park_size = (1000, 1000)
+        park_size = (200, 200)
         n_robots = 40
         n_vehicles = 100
         n_batteries = 30
@@ -35,7 +35,7 @@ def main():
     if strat not in ['nearest', 'max_demand', 'max_priority']:
         strat = 'nearest'
 
-    steps = 50000  # 仿真步数
+    steps = 10000  # 仿真步数
     for t in tqdm(range(steps), desc="Simulating"):
         strategy.update(time_step=1, strategy=strat)
         if t % 1000 == 0:
