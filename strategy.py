@@ -39,6 +39,7 @@ class TaskStrategy:
                 target_vehicle = None
                 for v in self.env.needcharge_vehicles:
                     if v.state == 'needcharge':
+                        v.set_state('charging')
                         dist = abs(robot.x - v.parking_spot[0]) + abs(robot.y - v.parking_spot[1])
                         if dist < min_dist:
                             min_dist = dist
@@ -56,6 +57,7 @@ class TaskStrategy:
                 target_vehicle = None
                 for v in self.env.needcharge_vehicles:
                     if v.state == 'needcharge':
+                        v.set_state('charging')
                         if v.battery_gap > max_gap:
                             max_gap = v.battery_gap
                             target_vehicle = v
@@ -72,6 +74,7 @@ class TaskStrategy:
                 target_vehicle = None
                 for v in self.env.needcharge_vehicles:
                     if v.state == 'needcharge':
+                        v.set_state('charging')
                         # 优先级 = 电量缺口 / 剩余离开时间
                         time_left = max(1, v.departure_time - self.env.time)  # 防止除0
                         priority = v.battery_gap / time_left

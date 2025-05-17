@@ -2,9 +2,8 @@ import numpy as np
 from models.battery import Battery
 
 class Car:
-    def __init__(self, id, arrival_time, departure_time, parking_spot):
+    def __init__(self, id, departure_time, parking_spot):
         self.id = id  # 车辆编号
-        self.arrival_time = arrival_time  # 到达时间
         self.departure_time = departure_time  # 离开时间
         self.parking_spot = parking_spot  # 停车位置 (x, y)
         self.battery = Battery(
@@ -27,6 +26,9 @@ class Car:
         self.state = state
 
     def update(self, step_time=0.1):
+        self.departure_time -= step_time
+        if (self.departure_time <= 0):
+            self.set_state('failed')
         self.time += step_time
         if self.state == 'needcharge':
             self.waittime += step_time

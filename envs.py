@@ -47,31 +47,19 @@ class ParkEnv:
         self.time = 0  # 当前仿真时间（秒）
         self.time_step = 0.1  # 时间步长（秒）
 
-    def random_generate_vehicles(self, index):
+    def random_generate_vehicles(self):
         if random.random() < 0.01 and self.n_vehicles < self.max_vehicles:
-            # 到达时间
-            arrival = random.randint(0, 600)
             # 离开时间（45~120min，高斯分布）
-            stay = int(np.clip(np.random.normal(90, 20), 45, 120))
-            departure = arrival + stay
+            stay = int(np.clip(np.random.normal(90, 20), 45, 120)) * 60
             # 停车点
             spot = (random.randint(0, self.park_size[0]), random.randint(0, self.park_size[1]))
-            # 电池架构
-            voltage = random.choice([400, 800])
-            # 电池容量
-            capacity_kwh = np.clip(np.random.normal(90, 10), 65, 115)
-            # 到达电量
-            remaining = np.random.uniform(5, 50)
-            # 离开所需电量
-            required = np.clip(np.random.normal(85, 10), 70, 100)
             car = Car(
-                id=index,
-                arrival_time=arrival,
-                departure_time=departure,
+                id=self.vehicles_index,
+                departure_time=stay,
                 parking_spot=spot,
                 )
             self.needcharge_vehicles.append(car)
-            index += 1
+            self.vehicles_index += 1
         else:
             pass
 
@@ -80,7 +68,7 @@ class ParkEnv:
         """
         执行一步仿真：更新机器人、车辆、电池站状态
         """
-        self.random_generate_vehicles(self.vehicles_index)
+        self.random_generate_vehicles()
         # 更新所有机器人
     
         for robot in self.robots:
@@ -90,6 +78,12 @@ class ParkEnv:
         # 更新所有车辆（如有需要）
         for car in self.needcharge_vehicles:
             car.update(self.time_step)
+            if car.state == 'completed':
+                self.completed_vehicles.append(car)
+                self.needcharge_vehicles.remove(car)
+            elif car.state == 'failed':
+                self.failed_vehicles.append(car)
+                self.needcharge_vehicles.remove(car)
         for car in self.charging_vehicles:
             car.update(self.time_step)
         # 电池站为所有电池充电

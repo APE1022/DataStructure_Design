@@ -68,3 +68,6 @@
 - **medium**：100x100m 方格
 - **small**：50x50m 方格
 时间步长：0.1s
+
+## 策略
+- **nearest_task**：遍历机器人，给空闲机器人分配最近的'needcharge'车辆,更改车辆状态为'charging'

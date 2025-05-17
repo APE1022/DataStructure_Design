@@ -44,7 +44,7 @@ class Battery:
             power_factor += 0.15
 
         power_factor = max(0.05, min(1.0, power_factor))
-        return max_power * power_factor
+        return max_power * power_factor /3600
 
     def is_full(self):
         return self.soc == 100

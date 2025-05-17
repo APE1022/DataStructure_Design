@@ -37,8 +37,9 @@ def main():
     steps = 100000  # 仿真步数
     for t in range(steps):
         strategy.update(time_step=0.1, strategy=strat)
+        print(f"Step {t}:")
         # 可在此处打印或记录状态
-        if t  == 10000:
+        if t  >= 90000:
             print(f"Step {t}:")
             print(env.get_status())
 

@@ -44,12 +44,13 @@ class Robot:
                 self.state = 'gohome'
 
         elif self.state == 'discharging':
-            charge_power = self.battery.get_charging_power()
+            charge_power = self.target.battery.get_charging_power()
             self.battery.discharge_kwh(charge_power * time_step / 0.95) # 充电损耗
             self.target.battery.charge_kwh(charge_power * time_step)
             if self.target.battery.soc >= self.target.required_soc:
                 self.target.set_state('completed')
                 self.target = None
+                self.target_point = None
                 if self.battery.soc <= self.min_soc:
                     self.state = 'gohome'
                 else:
@@ -57,10 +58,11 @@ class Robot:
 
         elif self.state == 'gohome':
             self.go_home(time_step)
-            if self.check_arrival(self.target_point): 
+            if self.check_arrival((self.home_x,self.home_y)): 
                 self.x, self.y = self.home_x, self.home_y
                 self.state = 'needswap'
                 self.target = None
+                self.target_point = None
                 self.battery.set_state('nonfull')
         
         elif self.state == 'swapping':
