@@ -24,6 +24,8 @@ class TaskStrategy:
             self.max_demand_task()
         elif strategy == 'max_priority':
             self.max_priority_task()
+        elif strategy == 'genetic':
+            self.genetic_task()
         else:
             raise ValueError("Invalid strategy. Choose 'nearest', 'max_demand', or 'max_priority'.")
         self.env.update(time_step)
@@ -83,3 +85,70 @@ class TaskStrategy:
                 if target_vehicle:
                     target_vehicle.set_state('charging')
                     robot.assign_task(target_vehicle)
+    def genetic_task(self, population_size=20, generations=30, mutation_rate=0.1):
+        """
+        遗传算法分配策略：为所有空闲机器人分配车辆，优化全局分配效果
+        """
+        import random
+        import copy
+
+        robots = [r for r in self.env.robots if r.state == 'available']
+        vehicles = [v for v in self.env.needcharge_vehicles if v.state == 'needcharge']
+        n = min(len(robots), len(vehicles))
+        if n == 0:
+            return
+        if n == 1:
+            # 只有一个机器人和一个车辆，直接分配
+            robots[0].assign_task(vehicles[0])
+            vehicles[0].set_state('charging')
+            return
+
+        # 染色体：机器人与车辆的分配方案（车辆索引的排列）
+        def fitness(chromosome):
+            # 适应度函数：总距离和（距离越小越好）
+            total_dist = 0
+            for i, v_idx in enumerate(chromosome):
+                robot = robots[i]
+                vehicle = vehicles[v_idx]
+                dist = abs(robot.x - vehicle.parking_spot[0]) + abs(robot.y - vehicle.parking_spot[1])
+                total_dist += dist
+            return -total_dist  # 距离越小适应度越高
+
+        # 初始化种群
+        population = []
+        base = list(range(len(vehicles)))
+        for _ in range(population_size):
+            chromosome = random.sample(base, n)
+            population.append(chromosome)
+
+        for gen in range(generations):
+            # 计算适应度
+            scored = [(fitness(ch), ch) for ch in population]
+            scored.sort(reverse=True)
+            # 选择前一半
+            selected = [ch for _, ch in scored[:population_size // 2]]
+
+            # 交叉
+            children = []
+            while len(children) < population_size - len(selected):
+                p1, p2 = random.sample(selected, 2)
+                cut = random.randint(1, n - 1)
+                child = p1[:cut] + [v for v in p2 if v not in p1[:cut]]
+                children.append(child)
+
+            # 变异
+            for child in children:
+                if random.random() < mutation_rate:
+                    i, j = random.sample(range(n), 2)
+                    child[i], child[j] = child[j], child[i]
+
+            population = selected + children
+
+        # 取最优解
+        best_chromosome = max(population, key=fitness)
+        # 分配任务
+        for i, v_idx in enumerate(best_chromosome):
+            robot = robots[i]
+            vehicle = vehicles[v_idx]
+            vehicle.set_state('charging')
+            robot.assign_task(vehicle)

@@ -14,19 +14,22 @@ class QLearningAgent:
         self.exploration_min = exploration_min
 
         # 状态空间和动作空间大小可根据实际环境调整
-        self.state_size = 100  # 示例：可根据状态离散化方式调整
+        self.state_size = 100  # 可根据状态离散化方式调整
         self.action_size = len(env.robots)
         self.q_table = np.zeros((self.state_size, self.action_size))
 
     def discretize_state(self, state):
         """
         将环境状态离散化为整数索引
-        这里可根据实际状态特征进行编码
+        这里只用第一个机器人和第一个待充电车辆的电量做离散化
         """
-        # 示例：只用第一个机器人和第一个车辆的电量做离散化
-        robot_battery = int(state["robots"][0][2])  # 机器人状态
-        vehicle_battery = int(state["vehicles"][0][1])
-        idx = (robot_battery // 10) * 10 + (vehicle_battery // 10)
+        # 假设env.get_status()返回有"robots"和"needcharge_vehicles"等
+        robot_soc = int(self.env.robots[0].battery.soc)
+        if self.env.needcharge_vehicles:
+            vehicle_soc = int(self.env.needcharge_vehicles[0].battery.soc)
+        else:
+            vehicle_soc = 0
+        idx = (robot_soc // 10) * 10 + (vehicle_soc // 10)
         return idx % self.state_size
 
     def choose_action(self, state):
@@ -53,12 +56,12 @@ class QLearningAgent:
             total_reward = 0
             for step in range(max_steps):
                 action = self.choose_action(state)
-                # 这里假设env.step(action)返回新状态、奖励、done
-                self.env.step()  # 你可以根据实际需要传递action
+                # 假设env.step(action)能处理动作，否则可只用env.step()
+                self.env.update(0.1)
                 next_state = self.env.get_status()
-                # 奖励函数可根据车辆服务完成数、能耗等自定义
                 reward = self._calc_reward(next_state)
-                done = all(v[3] for v in next_state["vehicles"])
+                # 判断所有车辆是否已完成
+                done = all(getattr(v, "state", "") == "completed" for v in getattr(self.env, "vehicles", []))
                 self.update_q_table(state, action, reward, next_state, done)
                 state = next_state
                 total_reward += reward
@@ -71,6 +74,6 @@ class QLearningAgent:
     def _calc_reward(self, state):
         """
         简单奖励函数：已服务车辆数
-        可根据README要求扩展为更复杂的奖励
         """
-        return sum(1 for v in state["vehicles"] if v[3])
+        # 假设env有completed_vehicles列表
+        return len(self.env.completed_vehicles)
