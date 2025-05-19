@@ -30,6 +30,7 @@ def main():
 
     env = ParkEnv(park_size=park_size, n_robots=n_robots, n_vehicles=n_vehicles, n_batteries=n_batteries,time_step=1)
     strategy = TaskStrategy(env)
+    # visualize = Visualize(env)
 
     print("请选择调度策略：nearest（最近任务优先）、max_demand（最大需求优先）、max_priority（最大优先级）、genetic（遗传算法）")
     strat = input().strip().lower()
@@ -39,6 +40,7 @@ def main():
     steps = 10000  # 仿真步数
     for t in tqdm(range(steps), desc="Simulating"):
         strategy.update(time_step=1, strategy=strat)
+        # visualize.update()
         if t % 1000 == 0:
             print(f"Step {t}:")
             print(env.get_status())
