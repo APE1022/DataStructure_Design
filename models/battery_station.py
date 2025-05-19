@@ -50,7 +50,7 @@ class BatteryStation:
         """
         for robot in self.robotsqueue:
             if robot.state == 'needswap':
-                if self.get_maxsoc() > robot.battery.soc:
+                if self.get_maxsoc() > robot.battery.soc and self.get_maxsoc() > 50:
                     # 机器人需要换电，提供电池
                     self.receive_battery(robot.battery)
                     robot.battery = self.get_maxsoc_battery()
@@ -68,6 +68,6 @@ class BatteryStation:
             else:
                 pass
 
-    def charging(self,battery:Battery = None,time_step=0.1):
+    def charging(self,battery:Battery,time_step):
         charging_power  = battery.get_charging_power()
         battery.charge_kwh(charging_power * time_step /3600)

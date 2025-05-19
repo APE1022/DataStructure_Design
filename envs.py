@@ -9,13 +9,22 @@ class ParkEnv:
     """
     园区自动充电机器人调度环境
     """
-    def __init__(self, park_size=(100, 100), n_robots=4, n_vehicles=10, n_batteries=3, time_step=0.1):
+    def __init__(self, park_size, n_robots, n_vehicles, n_batteries, time_step):
         self.park_size = park_size  # 场地大小
-        self.max_robots = n_robots  # 最大机器人数量
-        self.max_vehicles = n_vehicles
-        self.n_robots = 0
-        self.n_vehicles = 0
+        self.n_robots = n_robots  # 最大机器人数量
         self.n_batteries = n_batteries
+        self.max_vehicles = n_vehicles # 最大同时在场车辆
+        self.n_vehicles = 0 # 在场车辆计数器
+        self.generate_vehicles_probability = 0.001  # 车辆生成概率
+        # 初始化车辆
+        self.vehicles_index = 1
+        self.needcharge_vehicles = []
+        self.charging_vehicles = []
+        self.completed_vehicles = []
+        self.failed_vehicles = []
+        self.robot_to_car = {}  # 机器人与车辆的映射关系
+        self.time = 0  # 当前仿真时间（秒）
+        self.time_step = time_step  # 时间步长（秒）
 
         # 初始化电池站
         self.battery_station = BatteryStation([
@@ -30,27 +39,18 @@ class ParkEnv:
         self.robots = [
             Robot(
                 id=i + 1,
-                home_x=park_size[0],  # 假设机器人从园区中心出发
-                home_y=park_size[1],
-                speed=10,
+                home_x=park_size[0] / 2,  # 假设机器人从园区中心出发
+                home_y=park_size[1] / 2,
+                speed=2,
                 swap_time=120
             ) for i in range(n_robots)
         ]
 
-        # 初始化车辆
-        self.vehicles_index = 1
-        self.needcharge_vehicles = []
-        self.charging_vehicles = []
-        self.completed_vehicles = []
-        self.failed_vehicles = []
 
-        self.time = 0  # 当前仿真时间（秒）
-        self.time_step = time_step  # 时间步长（秒）
-
-    def random_generate_vehicles(self, ):
-        if random.random() < 0.001 and self.n_vehicles < self.max_vehicles:
+    def random_generate_vehicles(self, probability=0.001):
+        if random.random() < probability and self.n_vehicles < self.max_vehicles:
             # 离开时间（45~120min，高斯分布）
-            stay = int(np.clip(np.random.normal(90, 20), 45, 120)) * 60
+            stay = int(np.clip(np.random.normal(90, 20), 60, 120)) * 60
             # 停车点
             spot = (random.randint(0, self.park_size[0]), random.randint(0, self.park_size[1]))
             car = Car(
@@ -67,31 +67,45 @@ class ParkEnv:
 
     def update(self, time_step):
         """
-        执行一步仿真：更新机器人、车辆、电池站状态
+        主程序逻辑：
+
         """
-        self.random_generate_vehicles()
+        self.time += self.time_step
+        # 随机生成车辆
+        self.random_generate_vehicles(self.generate_vehicles_probability)
+
         # 更新所有机器人
-    
         for robot in self.robots:
             if robot.state == 'needswap':
                 self.battery_station.robotsqueue.append(robot)
+                robot.set_state('swapping')
             robot.update(time_step)
-        # 更新所有车辆（如有需要）
+
         for car in self.needcharge_vehicles:
             car.update(self.time_step)
-            if car.state == 'completed':
-                self.completed_vehicles.append(car)
+            if car.state == 'charging':
+                self.charging_vehicles.append(car)
                 self.needcharge_vehicles.remove(car)
                 self.n_vehicles -= 1
             elif car.state == 'failed':
                 self.failed_vehicles.append(car)
                 self.needcharge_vehicles.remove(car)
                 self.n_vehicles -= 1
+
         for car in self.charging_vehicles:
             car.update(self.time_step)
+            if car.state == 'completed':
+                self.completed_vehicles.append(car)
+                self.charging_vehicles.remove(car)
+                self.n_vehicles -= 1
+            elif car.state == 'failed':
+                self.failed_vehicles.append(car)
+                self.charging_vehicles.remove(car)
+                self.n_vehicles -= 1
+            
         # 电池站为所有电池充电
         self.battery_station.update(time_step)
-        self.time += self.time_step
+    
 
     def get_status(self):
         """
@@ -99,7 +113,7 @@ class ParkEnv:
         """
         return {
             "time": self.time,
-            # "robots": [(r.x, r.y, r.state,r.battery.soc) for r in self.robots],
+            "robots": [(r.x, r.y, r.state,r.battery.soc) for r in self.robots],
             "completed_vehicles_num": len(self.completed_vehicles),
             "failed_vehicles_num": len(self.failed_vehicles),
             "needcharge_vehicles_num": len(self.needcharge_vehicles),
@@ -109,3 +123,8 @@ class ParkEnv:
             # "charging_vehicles_num": [(v.parking_spot, v.battery.soc, v.required_soc, v.state) for v in self.charging_vehicles],
             "battery_station": self.battery_station.get_status()
         }
+    def update_new(self):
+        """
+        更新环境状态
+        """
+        # 查找字典，让

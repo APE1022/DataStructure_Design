@@ -35,29 +35,41 @@ class Robot:
 
     def update(self, time_step):
         """按步长更新机器人状态"""
-        if self.state == 'gocar' and self.target is not None:
-            self.move_toward_target(self.target, time_step)
+        if self.target is not None:
+            if self.target.state == 'completed':
+                self.target = None
+                self.target_point = None
+                self.state = 'available'
+            if self.target and self.target.state == 'failed':
+                self.target = None
+                self.target_point = None
+                self.state = 'available'
+        if self.battery.soc <= self.cal_distance((self.home_x,self.home_y)) * 100 / (5000 * self.battery.capacity):
+            self.state = 'gohome'
+            self.target_point = (self.home_x,self.home_y)
+        if self.state == 'gocar':
+            assert self.target_point is not None, "目标点不能为空"
+            self.target_point = (self.target.parking_spot[0], self.target.parking_spot[1])
+            self.move_toward_target(self.target_point, time_step)
             if self.check_arrival(self.target_point):
                 self.x, self.y = self.target.parking_spot  # 精确对齐
                 self.state = 'discharging'
-            if self.battery.soc <= self.min_soc:
-                self.state = 'gohome'
+                self.target.set_state('charging')
 
         elif self.state == 'discharging':
-            charge_power = self.target.battery.get_charging_power()
-            self.battery.discharge_kwh(charge_power * time_step / 0.95) # 充电损耗
-            self.target.battery.charge_kwh(charge_power * time_step)
-            if self.target.battery.soc >= self.target.required_soc:
-                self.target.set_state('completed')
+            if self.target.state == 'charging':
+                charge_power = self.target.battery.get_charging_power()
+                self.battery.discharge_kwh(charge_power * time_step / 0.95) # 充电损耗
+                self.target.battery.charge_kwh(charge_power * time_step)
+            else:
                 self.target = None
                 self.target_point = None
-                if self.battery.soc <= self.min_soc:
-                    self.state = 'gohome'
-                else:
-                    self.state = 'available'
-
+                self.state = 'available'
+            
         elif self.state == 'gohome':
-            self.go_home(time_step)
+            self.target = None
+            self.target
+            self.move_toward_target(self.target_point, time_step)
             if self.check_arrival((self.home_x,self.home_y)): 
                 self.x, self.y = self.home_x, self.home_y
                 self.state = 'needswap'
@@ -71,13 +83,11 @@ class Robot:
                 self.state = 'available'
                 self.swap_timer = 0
 
-        else:
-            pass
 
-    def move_toward_target(self, target: Car = None, time_step=0.1):
+    def move_toward_target(self, targetpoint=None, time_step=0.1):
         """按速度和步长向目标移动，并消耗电量"""
-        dx = target.parking_spot[0] - self.x
-        dy = target.parking_spot[1] - self.y
+        dx = targetpoint[0] - self.x
+        dy = targetpoint[1] - self.y
         distance = (dx ** 2 + dy ** 2) ** 0.5
         move_dist = min(self.speed * time_step, distance)
         if distance > 0:
@@ -97,7 +107,7 @@ class Robot:
         
     def check_arrival(self, target_point):
         """检查是否到达目标"""
-        if self.cal_distance(target_point) < self.speed * 1:
+        if self.cal_distance(target_point) < 1:
             return True
         return False
 
@@ -106,16 +116,3 @@ class Robot:
         self.target = target_vehicle
         self.target_point = (target_vehicle.parking_spot[0], target_vehicle.parking_spot[1])
         self.state = 'gocar'
-
-    def go_home(self,time_step):
-        """回到充电站"""
-        dx = self.home_x - self.x
-        dy = self.home_y - self.y
-        distance = (dx ** 2 + dy ** 2) ** 0.5
-        move_dist = min(self.speed * time_step, distance)
-        if distance > 0:
-            self.x += dx / distance * move_dist
-            self.y += dy / distance * move_dist
-            # 假设每千米消耗0.2度电
-            if self.battery:
-                self.battery.discharge_kwh(move_dist  / 5000)

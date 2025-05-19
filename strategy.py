@@ -1,21 +1,21 @@
-from models.battery_station import BatteryStation
-from models.robot import Robot
-from models.car import Car
-from models.battery import Battery
+# -*- coding: utf-8 -*-
+'''
 
+'''
 class TaskStrategy:
     """
     调度策略类，支持最近任务优先和最大任务优先
     """
 
-    def __init__(self, env):
+    def __init__(self, env,time_step):
         self.env = env
+        self.time_step = time_step
 
-    def update(self, time_step, strategy='nearest'):
+    def update(self,strategy='nearest'):
         """
         按时间步长更新调度与状态
-        :param time_step: 步长（秒）
-        :param strategy: 'nearest' 或 'max_demand'
+        param :
+        strategy: 调度策略
         """
         # 先分配任务
         if strategy == 'nearest':
@@ -28,7 +28,7 @@ class TaskStrategy:
             self.genetic_task()
         else:
             raise ValueError("Invalid strategy. Choose 'nearest', 'max_demand', or 'max_priority'.")
-        self.env.update(time_step)
+        self.env.update(self.time_step)
     
     def nearest_task(self):
         """
@@ -36,17 +36,17 @@ class TaskStrategy:
         """
         for robot in self.env.robots:
             if robot.state == 'available':
-
-                min_dist = float('inf')
+                min_dist = 10000
                 target_vehicle = None
                 for v in self.env.needcharge_vehicles:
-                    if v.state == 'needcharge':
-                        dist = abs(robot.x - v.parking_spot[0]) + abs(robot.y - v.parking_spot[1])
-                        if dist < min_dist:
-                            min_dist = dist
-                            target_vehicle = v
+                    dist = (abs(robot.x - v.parking_spot[0])**2 + abs(robot.y - v.parking_spot[1])**2)**0.5
+                    if dist < min_dist:
+                        min_dist = dist
+                        target_vehicle = v
                 if target_vehicle:
                     target_vehicle.set_state('charging')
+                    self.env.needcharge_vehicles.remove(target_vehicle)
+                    self.env.charging_vehicles.append(target_vehicle)
                     robot.assign_task(target_vehicle)
 
     def max_demand_task(self):
@@ -85,6 +85,7 @@ class TaskStrategy:
                 if target_vehicle:
                     target_vehicle.set_state('charging')
                     robot.assign_task(target_vehicle)
+
     def genetic_task(self, population_size=20, generations=30, mutation_rate=0.1):
         """
         遗传算法分配策略：为所有空闲机器人分配车辆，优化全局分配效果
@@ -110,7 +111,7 @@ class TaskStrategy:
             for i, v_idx in enumerate(chromosome):
                 robot = robots[i]
                 vehicle = vehicles[v_idx]
-                dist = abs(robot.x - vehicle.parking_spot[0]) + abs(robot.y - vehicle.parking_spot[1])
+                dist = (abs(robot.x - vehicle.parking_spot[0])**2 + abs(robot.y - vehicle.parking_spot[1])**2)**0.5
                 total_dist += dist
             return -total_dist  # 距离越小适应度越高
 

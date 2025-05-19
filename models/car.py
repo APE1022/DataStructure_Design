@@ -26,17 +26,22 @@ class Car:
         self.state = state
 
     def update(self, step_time=0.1):
+        '''
+        更新逻辑：
+        1. 更新当前时间
+        2. 更新离开时间
+        3. 如果离开时间小于等于0，设置状态为failed
+        4. 如果状态为needcharge，更新等待时间
+        5. 检查电池是否充满
+        6. 其他状态下不更新电池状态
+        '''
+        self.time += step_time
         self.departure_time -= step_time
         if (self.departure_time <= 0):
             self.set_state('failed')
-        self.time += step_time
         if self.state == 'needcharge':
             self.waittime += step_time
-        elif self.state == 'charging':
-            # 充电逻辑
-            if self.battery.get_soc() >= self.required_soc:
-                self.state = 'completed'
-        else:
-            # 其他状态下不更新电池状态
-            pass
+        if self.battery.soc >= self.required_soc:
+            self.set_state('completed')
+
 
