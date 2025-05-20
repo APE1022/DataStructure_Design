@@ -70,4 +70,4 @@ class BatteryStation:
 
     def charging(self,battery:Battery,time_step):
         charging_power  = battery.get_charging_power()
-        battery.charge_kwh(charging_power * time_step /3600)
+        battery.charge_kwh(charging_power * time_step)

@@ -2,7 +2,7 @@ from envs import ParkEnv
 from strategy import TaskStrategy
 from tqdm import tqdm
 from qlearning_agent import QLearningAgent
-from visualization import ParkEnvVisualizer
+from visualization_new import ChargingVisualizer
 
 def main():
 
@@ -36,10 +36,10 @@ def main():
 
     env = ParkEnv(park_size=park_size, n_robots=n_robots, n_vehicles=n_vehicles, n_batteries=n_batteries, time_step=0.1)
     strategy = TaskStrategy(env, time_step=1)
-    visualizer = ParkEnvVisualizer(env, cell_size=12)
+    visualizer = ChargingVisualizer(env, cell_size=12)
 
 
-    steps = 10000  # 仿真步数
+    steps = 20000  # 仿真步数
     import pygame
     from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_SPACE
     paused = False
