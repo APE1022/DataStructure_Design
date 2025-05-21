@@ -75,7 +75,7 @@ class StartupScreen:
             
             # 策略按钮 - 第三行 (新增)
             'multi_objective': pygame.Rect(250, 320, 145, 40),
-            'battery_management': pygame.Rect(405, 320, 145, 40),
+            'RL': pygame.Rect(405, 320, 145, 40),
             
             # 时间步长按钮和输入框
             'time_dec': pygame.Rect(300, 390, 40, 40),
@@ -125,11 +125,11 @@ class StartupScreen:
         strategy_label = self.font_subtitle.render(self.labels['strategy'], True, COLORS['black'])
         self.screen.blit(strategy_label, (120, 240))
         self._draw_button_group(
-            ['nearest', 'max_demand', 'max_priority', 'genetic', 'multi_objective', 'battery_management'], 
+            ['nearest', 'max_demand', 'max_priority', 'genetic', 'multi_objective', 'RL'], 
             self.configs['strategy'],
             {'nearest': '最近任务', 'max_demand': '最大需求', 
              'max_priority': '最高优先级', 'genetic': '遗传算法', 
-             'multi_objective': '多目标优化', 'battery_management': '电池管理'}
+             'multi_objective': '多目标优化', 'RL': '强化学习'}
         )
         
         # 绘制时间步长选择
@@ -305,7 +305,7 @@ class StartupScreen:
                     
                     # 处理策略按钮
                     for strategy in ['nearest', 'max_demand', 'max_priority', 'genetic', 
-                                    'multi_objective', 'battery_management']:
+                                    'multi_objective', 'RL']:
                         if strategy in self.buttons and self.buttons[strategy].collidepoint(pos):
                             self.configs['strategy'] = strategy
                     

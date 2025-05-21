@@ -28,7 +28,7 @@ class TaskStrategy:
             self.max_priority_task()
         elif strategy == 'genetic':
             self.genetic_task()
-        elif strategy == 'q_table':
+        elif strategy == 'RL':
             if self.agent is None:
                 raise ValueError("Q表策略需要传入agent参数")
             self.q_table_task(self.agent)
