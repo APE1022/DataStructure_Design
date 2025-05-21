@@ -17,10 +17,13 @@ class Car:
         self.required_soc = np.clip(np.random.normal(85, 10), 70, 100)
         # 所需电量
         self.battery_gap = (self.required_soc - self.battery.soc) * self.battery.capacity / 100
+        self.static_battery_gap = self.battery_gap  # 只在这里赋值一次
         # self.battery_gap = max(self.battery_gap, 0)  # 确保电池差值不为负
         self.time = 0
         self.waittime = 0
+        self.static_battery_gap = 0
 
+        
     def set_state(self, state):
         assert state in ['charging', 'completed', 'needcharge', 'failed'], "Invalid state"
         self.state = state

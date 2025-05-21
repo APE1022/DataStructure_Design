@@ -11,7 +11,7 @@ class TaskStrategy:
         self.env = env
         self.time_step = time_step
 
-    def update(self, strategy='nearest'):
+    def update(self, strategy='nearest', agent=None):
         """
         按时间步长更新调度与状态
         param :
@@ -26,6 +26,10 @@ class TaskStrategy:
             self.max_priority_task()
         elif strategy == 'genetic':
             self.genetic_task()
+        elif strategy == 'q_table':
+            if agent is None:
+                raise ValueError("Q表策略需要传入agent参数")
+            self.q_table_task(agent)
         elif strategy == 'battery_management':
             self.battery_management_task()
         elif strategy == 'cluster_service':
@@ -246,64 +250,47 @@ class TaskStrategy:
                 vehicle.set_state('charging')
                 robot.assign_task(vehicle)
     
-    def multi_objective_task(self):
+    def q_table_task(self, agent):
         """
-        多目标优化策略：同时考虑任务紧急度、距离、机器人电量和充电站负载平衡
+        基于Q表的推理分配策略：每步直接选择Q值最大的动作（机器人-车辆对）
         """
-        # 获取所有可用机器人
-        available_robots = [r for r in self.env.robots if r.state == 'available']
-        
-        if not available_robots or not self.env.needcharge_vehicles:
-            return
-        
-        # 为每个机器人-车辆对计算综合分数
-        assignments = []
-        
-        for robot in available_robots:
-            for vehicle in self.env.needcharge_vehicles:
-                # 计算因素
-                distance = ((robot.x - vehicle.parking_spot[0])**2 + 
-                        (robot.y - vehicle.parking_spot[1])**2)**0.5
-                
-                urgency = vehicle.battery_gap / max(0.1, vehicle.departure_time)
-                
-                robot_energy = robot.battery.soc
-                
-                # 计算充电站的负荷，考虑电池站的位置
-                battery_station_x, battery_station_y = self.env.battery_station.location # 假设电池站在中心
-                distance_to_station = ((robot.x - battery_station_x)**2 + 
-                                    (robot.y - battery_station_y)**2)**0.5
-                
-                # 综合评分 (权重可调整)
-                # 紧急度越高越好，距离越短越好，机器人电量越高越好
-                score = (0.4 * urgency) + (0.3 * (100 / (distance + 1))) + (0.2 * (robot_energy / 100)) + (0.1 * (100 / (distance_to_station + 1)))
-                
-                assignments.append((score, robot, vehicle))
-        
-        # 修改排序方式：只按照分数排序，忽略其他元素的比较
-        assignments = sorted(assignments, key=lambda x: x[0], reverse=True)
-        
-        # 记录已分配的资源
+        state = self.env.get_status()
+        state_idx = agent.discretize_state(state)
         assigned_robots = set()
         assigned_vehicles = set()
-        
-        # 根据分数进行分配
-        for score, robot, vehicle in assignments:
-            if robot in assigned_robots or vehicle in assigned_vehicles:
-                continue
-                
+
+        # 动作空间大小 = 机器人数量 * 最大车辆数
+        for _ in range(len(self.env.robots)):
+            # 获取当前状态下所有动作的Q值
+            q_values = agent.q_table[state_idx].copy()
+
+            # 屏蔽已分配的机器人和车辆的动作
+            for action in range(len(q_values)):
+                robot_idx = action // self.env.max_vehicles
+                car_idx = action % self.env.max_vehicles
+                if (robot_idx >= len(self.env.robots) or
+                    car_idx >= len(self.env.needcharge_vehicles) or
+                    self.env.robots[robot_idx] in assigned_robots or
+                    self.env.needcharge_vehicles[car_idx] in assigned_vehicles or
+                    self.env.robots[robot_idx].state != "available" or
+                    self.env.needcharge_vehicles[car_idx].state != "needcharge"):
+                    q_values[action] = -float('inf')  # 使其不会被选中
+
+            # 选择Q值最大的动作
+            best_action = q_values.argmax()
+            if q_values[best_action] == -float('inf'):
+                break  # 没有可用动作
+
+            robot_idx = best_action // self.env.max_vehicles
+            car_idx = best_action % self.env.max_vehicles
+            robot = self.env.robots[robot_idx]
+            car = self.env.needcharge_vehicles[car_idx]
+
             # 分配任务
-            vehicle.set_state('charging')
-            robot.assign_task(vehicle)
-            
+            car.set_state('charging')
+            robot.assign_task(car)
             assigned_robots.add(robot)
-            assigned_vehicles.add(vehicle)
-            
-            # 更新列表
-            if vehicle in self.env.needcharge_vehicles:
-                self.env.needcharge_vehicles.remove(vehicle)
-                self.env.charging_vehicles.append(vehicle)
-            
-            # 如果所有机器人都已分配，结束循环
-            if len(assigned_robots) >= len(available_robots):
-                break
+            assigned_vehicles.add(car)
+            if car in self.env.needcharge_vehicles:
+                self.env.needcharge_vehicles.remove(car)
+                self.env.charging_vehicles.append(car)

@@ -72,12 +72,13 @@ class QLearningAgent:
             robot.assign_task(car)
             # 机器人状态会自动变为gocar，car状态会在robot.update中变为charging
 
-    def train(self, choice, episodes=1000, max_steps=1000, log_interval=1, debug=False):
+    def train(self, choice, episodes=1000, max_steps=10000, log_interval=100, debug=False):
         for ep in range(episodes):
             self.env = copy.deepcopy(self.static_env)
             # 保证每次重置后车辆生成概率仍为1
             state = self.env.get_status()
             total_reward = 0
+            reward_list = []
 
             for step in range(max_steps):
                 self.env.update(self.env.time_step)
@@ -99,48 +100,58 @@ class QLearningAgent:
                 self.update_q_table(state, action, reward, next_state, done)
                 state = next_state
                 total_reward += reward
+                reward_list.append(reward)
                 if done:
                     break
 
-            # if debug:
-            #     # 打印所有车辆列表信息
-            #     vehicle_lists = [
-            #         ("needcharge_vehicles", self.env.needcharge_vehicles),
-            #         ("charging_vehicles", self.env.charging_vehicles),
-            #         ("completed_vehicles", self.env.completed_vehicles),
-            #         ("failed_vehicles", self.env.failed_vehicles)
-            #     ]
-            #     for name, vlist in vehicle_lists:
-            #         if vlist:
-            #             print(f"{name}:")
-            #             for car in vlist:
-            #                 print(f"  id={car.id}, state={getattr(car, 'state', None)}, soc={getattr(car.battery, 'soc', None)}")
-            #     # 打印所有机器人信息
-            #     if self.env.robots:
-            #         print("robots:")
-            #         for robot in self.env.robots:
-            #             print(f"  id={robot.id}, state={getattr(robot, 'state', None)}, soc={getattr(robot.battery, 'soc', None)}")
+            if debug:
+                # 打印所有车辆列表信息
+                vehicle_lists = [
+                    ("needcharge_vehicles", self.env.needcharge_vehicles),
+                    ("charging_vehicles", self.env.charging_vehicles),
+                    ("completed_vehicles", self.env.completed_vehicles),
+                    ("failed_vehicles", self.env.failed_vehicles)
+                ]
+                for name, vlist in vehicle_lists:
+                    if vlist:
+                        print(f"{name}:")
+                        for car in vlist:
+                            print(f"  id={car.id}, state={getattr(car, 'state', None)}, soc={getattr(car.battery, 'soc', None)}")
+                # 打印所有机器人信息
+                if self.env.robots:
+                    print("robots:")
+                    for robot in self.env.robots:
+                        print(f"  id={robot.id}, state={getattr(robot, 'state', None)}, soc={getattr(robot.battery, 'soc', None)}")
 
             self.exploration_rate = max(self.exploration_min, self.exploration_rate * self.exploration_decay)
             if (ep + 1) % log_interval == 0:
                 completed_num = len(self.env.completed_vehicles)
                 failed_num = len(self.env.failed_vehicles)
                 total_generated = self.env.vehicles_index
-                rgv_count = self.env.random_generate_vehicles_count  # 新增
+
                 print(f"Episode {ep+1}, Total Reward: {total_reward:.2f}, Exploration Rate: {self.exploration_rate:.3f}, "
                     f"Completed: {completed_num}, Failed: {failed_num}, Total Generated: {total_generated}")
 
+                print(f"Episode {ep+1} reward stats: mean={np.mean(reward_list):.2f}, std={np.std(reward_list):.2f}, min={np.min(reward_list):.2f}, max={np.max(reward_list):.2f}")
+    
     def _calc_reward_most(self, debug=False):
         reward = 0
+        completed_reward = 100
+        failed_reward = -80  # 失败惩罚更大
+        max_gap = 95
+        min_departure = 7200
         for car in self.env.failed_vehicles:
             if not hasattr(car, "counted") or car.counted == 0:
-                reward -= 50
+                urgency = (car.static_battery_gap / max_gap) / ((car.departure_time + 1) / min_departure)
+                urgency = min(urgency, 2)
+                reward += failed_reward * (urgency ** 1.2)
                 car.counted = 1
         for car in self.env.completed_vehicles:
             if not hasattr(car, "counted") or car.counted == 0:
-                reward += 100
+                urgency = (car.static_battery_gap / max_gap) / ((car.departure_time + 1) / min_departure)
+                urgency = min(urgency, 2)
+                reward += completed_reward * urgency
                 car.counted = 1
-        # 每有一个机器人正在服务奖励+1
         for robot in self.env.robots:
             if robot.state != "available":
                 reward += 1
@@ -152,18 +163,59 @@ class QLearningAgent:
 
     def _calc_reward_nearest(self, debug=False):
         completed_reward = 100
-        failed_reward = -50
-        largest_distance = self.env.park_size[0] / 2 + self.env.park_size[1] / 2
+        failed_reward = -80
         reward = 0
+        # 计算最大可能距离用于归一化
+        max_distance = np.sqrt((self.env.park_size[0]/2) ** 2 + (self.env.park_size[1]/2) ** 2)
         for car in self.env.failed_vehicles:
             if not hasattr(car, "counted") or car.counted == 0:
-                reward += (failed_reward * self._calc_distance_to_charge_station(car) / largest_distance)
+                distance = self._calc_distance_to_charge_station(car)
+                norm_dist = 1 - (distance / (max_distance + 1e-6))  # 距离越近，norm_dist越大
+                reward += failed_reward * norm_dist  # 距离越近失败惩罚越大
                 car.counted = 1
         for car in self.env.completed_vehicles:
             if not hasattr(car, "counted") or car.counted == 0:
-                reward += (completed_reward * self._calc_distance_to_charge_station(car) / largest_distance)
+                distance = self._calc_distance_to_charge_station(car)
+                norm_dist = 1 - (distance / (max_distance + 1e-6))  # 距离越近，norm_dist越大
+                reward += completed_reward * norm_dist  # 距离越近奖励越大
                 car.counted = 1
-        # for car in self.env.charging_vehicles:
-        #     reward += ((car.battery.soc - (car.required_soc - car.battery_gap)) / car.battery_gap
-        #                * self._calc_distance_to_charge_station(car) / largest_distance)
+        # 奖励机器人利用率
+        for robot in self.env.robots:
+            if robot.state != "available":
+                reward += 1
+        return reward
+    
+    def _calc_reward_small(self, debug=False):
+        reward = 0
+        # 完成/失败奖励幅度减小
+        completed_reward = 10
+        failed_reward = -10
+        # 中间奖励
+        assign_reward = 1
+        busy_robot_reward = 0.5
+        wait_penalty = -0.2
+
+        # 完成/失败车辆奖励
+        for car in self.env.completed_vehicles:
+            if not hasattr(car, "counted") or car.counted == 0:
+                reward += completed_reward
+                car.counted = 1
+        for car in self.env.failed_vehicles:
+            if not hasattr(car, "counted") or car.counted == 0:
+                reward += failed_reward
+                car.counted = 1
+
+        # 每步机器人忙碌奖励
+        for robot in self.env.robots:
+            if robot.state != "available":
+                reward += busy_robot_reward
+
+        # 每步分配任务奖励（假设你有 assign_task 记录）
+        # reward += assign_reward * num_assignments_this_step
+
+        # 对等待时间长的车辆惩罚
+        for car in self.env.needcharge_vehicles:
+            if hasattr(car, "waittime") and car.waittime > 10:
+                reward += wait_penalty
+
         return reward
