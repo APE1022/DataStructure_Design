@@ -49,7 +49,7 @@ def main():
     
     # 初始化默认设置
     current_map_size = 'small'
-    current_strategy = 'max_priority'
+    current_strategy = 'q_table'
     current_time_step = 10
     
     # 创建初始环境

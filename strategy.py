@@ -2,6 +2,7 @@
 '''
 
 '''
+from qlearning_agent import QLearningAgent
 class TaskStrategy:
     """
     调度策略类，支持最近任务优先和最大任务优先
@@ -10,6 +11,7 @@ class TaskStrategy:
     def __init__(self, env,time_step):
         self.env = env
         self.time_step = time_step
+        self.agent = QLearningAgent(env)
 
     def update(self, strategy='nearest', agent=None):
         """
@@ -27,9 +29,9 @@ class TaskStrategy:
         elif strategy == 'genetic':
             self.genetic_task()
         elif strategy == 'q_table':
-            if agent is None:
+            if self.agent is None:
                 raise ValueError("Q表策略需要传入agent参数")
-            self.q_table_task(agent)
+            self.q_table_task(self.agent)
         elif strategy == 'battery_management':
             self.battery_management_task()
         elif strategy == 'cluster_service':
