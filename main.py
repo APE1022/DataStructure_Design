@@ -12,7 +12,7 @@ def create_environment(map_size, time_step=1.0):
             'n_robots': 4,
             'n_vehicles': 10,
             'n_batteries': 3,
-            'generate_vehicles_probability': 0.001
+            'generate_vehicles_probability': 0.1
         },
         'medium': {
             'park_size': (100, 100),
@@ -49,8 +49,8 @@ def main():
     
     # 初始化默认设置
     current_map_size = 'small'
-    current_strategy = 'genetic'
-    current_time_step = 1.0
+    current_strategy = 'max_priority'
+    current_time_step = 10
     
     # 创建初始环境
     env = create_environment(current_map_size, current_time_step)

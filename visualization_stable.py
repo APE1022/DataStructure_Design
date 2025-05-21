@@ -78,17 +78,20 @@ class ChargingVisualizer:
     def draw_vehicles(self):
         for vehicle in self.env.needcharge_vehicles + self.env.charging_vehicles:
             x, y = int(vehicle.parking_spot[0] * self.cell_size), int(vehicle.parking_spot[1] * self.cell_size)
-            if getattr(vehicle, "serviced", False):
-                color = (0, 255, 0)
-            elif getattr(vehicle, "remaining_battery", 100) < getattr(vehicle, "required_battery", 100) * 0.3:
-                color = (255, 0, 0)
+            if getattr(vehicle, "state") == 'charging':
+                color = (0, 255, 0) # 绿色 - 充电中
+            elif getattr(vehicle, "state") == 'needcharge':
+                color = (0, 0, 255) # 蓝色 - 需要充电
+            elif getattr(vehicle, "state") == 'failed':
+                color = (255, 0, 0) # 红色 - 充电失败
             else:
                 color = (255, 255, 0)
             size = max(5, int(self.cell_size * 0.4))
             pygame.draw.rect(self.screen, color, (x - size // 2, y - size // 2, size, size))
-            txt = self.font.render(f"C{getattr(vehicle, 'id', '?')}:{getattr(vehicle, 'remaining_battery', 0):.0f}", True, (0, 0, 0))
-            self.screen.blit(txt, (x - 20, y - 25))
+            txt = self.font.render(f"C{getattr(vehicle, 'id', '?')}", True, (0, 0, 0))
+            self.screen.blit(txt, (x - self.cell_size, y - self.cell_size // 2))
 
+    # TODO: 需要改变显示位置，电池多了可能需要只显示nonfull
     def draw_battery_station(self):
         if hasattr(self.env, "battery_station"):
             # 电池站本体
@@ -102,7 +105,7 @@ class ChargingVisualizer:
             icon_x = self.screen_width - 160
             icon_y = 20
             icon_w, icon_h = 30, 14
-            gap = 40
+            gap = 10
 
             self.screen.blit(self.font.render("电池站电池", True, (0, 100, 0)), (icon_x, icon_y - 20))
             for i, soc in enumerate(battery_status):
@@ -133,6 +136,7 @@ class ChargingVisualizer:
             max_text = self.font.render(f'最高: {max_soc:.1f}%', True, (0, 0, 0))
             self.screen.blit(max_text, (icon_x, icon_y + len(battery_status) * (icon_h + gap) + 5))
 
+    # Temp Completed，TODO: 需要改变显示位置
     def draw_robot_battery_info(self):
         # 左上角显示机器人电量
         icon_x = 20
@@ -164,13 +168,15 @@ class ChargingVisualizer:
     def draw_info(self, step, strategy="nearest"):
         info_y = self.height * self.cell_size + 10
         lines = [
-            f"Step: {step}",
-            f"Robots: {len(self.env.robots)}",
+            f"Strategy: {strategy}",
+            f"Time: {self.env.time:.1f}s",
+            f"TotalVehicles: {self.env.vehicles_index}",
             f"NeedCharge: {len(self.env.needcharge_vehicles)}",
             f"Charging: {len(self.env.charging_vehicles)}",
             f"Completed: {len(self.env.completed_vehicles)}",
-            f"TotalReward: {getattr(self.env, 'total_reward', 0):.1f}",
-            f"Strategy: {strategy}"
+            f"Failed: {len(self.env.failed_vehicles)}",
+            f"TotalVehicles: {self.env.vehicles_index}",
+            # f"TotalReward: {getattr(self.env, 'total_reward', 0):.1f}",
         ]
         for i, line in enumerate(lines):
             txt = self.font.render(line, True, (0, 0, 0))
@@ -186,23 +192,3 @@ class ChargingVisualizer:
         self.draw_info(step, strategy)
         self.draw_legend()  # 新增图例
         pygame.display.flip()
-
-    def run(self, max_steps=10000, delay=2, strategy="nearest", task_strategy=None):
-        step = 0
-        clock = pygame.time.Clock()
-        while step < max_steps:
-            for event in pygame.event.get():
-                if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
-                    pygame.quit()
-                    return
-                elif event.type == KEYDOWN and event.key == K_SPACE:
-                    self.paused = not self.paused
-            if not self.paused:
-                if task_strategy:
-                    task_strategy.update(time_step=self.env.time_step, strategy=strategy)
-                else:
-                    self.env.step(strategy)
-                self.render(step, strategy)
-                step += 1
-                if delay > 0:
-                    clock.tick(int(1 / delay))

@@ -126,63 +126,113 @@ class TaskStrategy:
         import random
         import copy
 
+        # 获取可用机器人和需要服务的车辆
         robots = [r for r in self.env.robots if r.state == 'available']
-        vehicles = [v for v in self.env.needcharge_vehicles if v.state == 'needcharge']
-        n = min(len(robots), len(vehicles))
-        if n == 0:
+        vehicles = self.env.needcharge_vehicles
+        
+        # 如果没有需要分配的资源，直接返回
+        if not robots or not vehicles:
             return
-        if n == 1:
-            # 只有一个机器人和一个车辆，直接分配
-            robots[0].assign_task(vehicles[0])
-            vehicles[0].set_state('charging')
+        
+        # 定义染色体长度为机器人数量和车辆数量中的较小值
+        chrom_length = min(len(robots), len(vehicles))
+        
+        # 如果染色体长度太小，不适合遗传算法，直接用贪心算法
+        if chrom_length <= 1:
+            # 使用最近任务策略作为备选
+            for robot in robots:
+                if robot.state == 'available' and vehicles:
+                    # 找到最近的车辆
+                    min_dist = float('inf')
+                    closest_vehicle = None
+                    for vehicle in vehicles:
+                        dist = ((robot.x - vehicle.parking_spot[0])**2 + 
+                            (robot.y - vehicle.parking_spot[1])**2)**0.5
+                        if dist < min_dist:
+                            min_dist = dist
+                            closest_vehicle = vehicle
+                    
+                    if closest_vehicle:
+                        closest_vehicle.set_state('charging')
+                        robot.assign_task(closest_vehicle)
+                        vehicles.remove(closest_vehicle)
             return
-
-        # 染色体：机器人与车辆的分配方案（车辆索引的排列）
+        
+        # 正常的遗传算法流程
+        def create_chromosome():
+            return random.sample(range(len(vehicles)), chrom_length)
+        
         def fitness(chromosome):
-            # 适应度函数：总距离和（距离越小越好）
-            total_dist = 0
-            for i, v_idx in enumerate(chromosome):
-                robot = robots[i]
-                vehicle = vehicles[v_idx]
-                dist = (abs(robot.x - vehicle.parking_spot[0])**2 + abs(robot.y - vehicle.parking_spot[1])**2)**0.5
-                total_dist += dist
-            return -total_dist  # 距离越小适应度越高
+            total_fitness = 0
+            for i, vehicle_idx in enumerate(chromosome):
+                if i < len(robots) and vehicle_idx < len(vehicles):
+                    robot = robots[i]
+                    vehicle = vehicles[vehicle_idx]
+                    
+                    dist = ((robot.x - vehicle.parking_spot[0])**2 + 
+                            (robot.y - vehicle.parking_spot[1])**2)**0.5
+                    
+                    urgency = vehicle.battery_gap / max(0.1, vehicle.departure_time)
+                    
+                    score = urgency / (dist + 1)
+                    total_fitness += score
+            return total_fitness
 
         # 初始化种群
         population = []
         base = list(range(len(vehicles)))
         for _ in range(population_size):
-            chromosome = random.sample(base, n)
+            chromosome = random.sample(base, chrom_length)
             population.append(chromosome)
 
         for gen in range(generations):
             # 计算适应度
             scored = [(fitness(ch), ch) for ch in population]
             scored.sort(reverse=True)
-            # 选择前一半
             selected = [ch for _, ch in scored[:population_size // 2]]
 
             # 交叉
             children = []
             while len(children) < population_size - len(selected):
                 p1, p2 = random.sample(selected, 2)
-                cut = random.randint(1, n - 1)
-                child = p1[:cut] + [v for v in p2 if v not in p1[:cut]]
+                
+                # 修复：确保切分点在有效范围内
+                if chrom_length > 2:
+                    cut = random.randint(1, chrom_length - 1)
+                    child = p1[:cut] + [v for v in p2 if v not in p1[:cut]]
+                else:
+                    # 染色体长度为2，使用简单交换
+                    child = p2.copy()  # 直接使用另一个父本
+                
+                # 确保子代长度正确
+                while len(child) < chrom_length:
+                    new_gene = random.choice(base)
+                    if new_gene not in child:
+                        child.append(new_gene)
+                        
+                # 如果子代过长，截断
+                if len(child) > chrom_length:
+                    child = child[:chrom_length]
+                    
                 children.append(child)
 
             # 变异
             for child in children:
                 if random.random() < mutation_rate:
-                    i, j = random.sample(range(n), 2)
-                    child[i], child[j] = child[j], child[i]
+                    if chrom_length >= 2:  # 确保有足够的基因可以交换
+                        i, j = random.sample(range(chrom_length), 2)
+                        child[i], child[j] = child[j], child[i]
 
             population = selected + children
 
         # 取最优解
         best_chromosome = max(population, key=fitness)
+        
         # 分配任务
         for i, v_idx in enumerate(best_chromosome):
-            robot = robots[i]
-            vehicle = vehicles[v_idx]
-            vehicle.set_state('charging')
-            robot.assign_task(vehicle)
+            if i < len(robots) and v_idx < len(vehicles):  # 确保索引有效
+                robot = robots[i]
+                vehicle = vehicles[v_idx]
+                vehicle.set_state('charging')
+                robot.assign_task(vehicle)
+        

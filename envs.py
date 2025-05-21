@@ -41,7 +41,7 @@ class ParkEnv:
                 id=i + 1,
                 home_x=park_size[0] / 2,  # 假设机器人从园区中心出发
                 home_y=park_size[1] / 2,
-                speed=2,
+                speed=10,
                 swap_time=120
             ) for i in range(n_robots)
         ]

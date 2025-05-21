@@ -48,6 +48,11 @@ class Robot:
             self.state = 'gohome'
             self.target_point = (self.home_x,self.home_y)
             self.target.state = 'needcharge'
+        elif self.battery.soc <= self.min_soc and self.state == 'available':
+            self.state = 'gohome'
+            self.target_point = (self.home_x,self.home_y)
+
+
         if self.state == 'gocar':
             assert self.target_point is not None, "目标点不能为空"
             self.target_point = (self.target.parking_spot[0], self.target.parking_spot[1])
