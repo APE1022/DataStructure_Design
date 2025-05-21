@@ -13,7 +13,7 @@ def create_environment(map_size, time_step=1.0):
             'n_robots': 4,
             'n_vehicles': 10,
             'n_batteries': 3,
-            'generate_vehicles_probability': 0.1,
+            'generate_vehicles_probability': 0.005,
             'cell_size': 11
         },
         'medium': {
@@ -21,7 +21,7 @@ def create_environment(map_size, time_step=1.0):
             'n_robots': 16,
             'n_vehicles': 40,
             'n_batteries': 12,
-            'generate_vehicles_probability': 0.005,
+            'generate_vehicles_probability': 0.02,
             'cell_size': 5
         },
         'large': {
@@ -29,7 +29,7 @@ def create_environment(map_size, time_step=1.0):
             'n_robots': 40,
             'n_vehicles': 100,
             'n_batteries': 30,
-            'generate_vehicles_probability': 0.5,
+            'generate_vehicles_probability': 0.05,
             'cell_size': 2
         }
     }
