@@ -9,13 +9,13 @@ class ParkEnv:
     """
     园区自动充电机器人调度环境
     """
-    def __init__(self, park_size, n_robots, n_vehicles, n_batteries, time_step):
+    def __init__(self, park_size, n_robots, n_vehicles, n_batteries, time_step, generate_vehicles_probability):
         self.park_size = park_size  # 场地大小
         self.n_robots = n_robots  # 最大机器人数量
         self.n_batteries = n_batteries
         self.max_vehicles = n_vehicles # 最大同时在场车辆
         self.n_vehicles = 0 # 在场车辆计数器
-        self.generate_vehicles_probability = 0.001  # 车辆生成概率
+        self.generate_vehicles_probability = generate_vehicles_probability  # 车辆生成概率
         # 初始化车辆
         self.vehicles_index = 1
         self.needcharge_vehicles = []
@@ -86,7 +86,7 @@ class ParkEnv:
             if car.state == 'charging':
                 self.charging_vehicles.append(car)
                 self.needcharge_vehicles.remove(car)
-                self.n_vehicles -= 1
+                # self.n_vehicles -= 1
             elif car.state == 'failed':
                 self.failed_vehicles.append(car)
                 self.needcharge_vehicles.remove(car)

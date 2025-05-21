@@ -13,33 +13,38 @@ def main():
         n_robots = 4
         n_vehicles = 10
         n_batteries = 3
+        generate_vehicles_probability = 0.001
     elif scale == 'medium':
         park_size = (100, 100)
         n_robots = 16
         n_vehicles = 40
         n_batteries = 12
+        generate_vehicles_probability = 0.005
     elif scale == 'large':
         park_size = (500, 500)
         n_robots = 40
         n_vehicles = 100
         n_batteries = 30
+        generate_vehicles_probability = 0.012
     else:
         print("输入无效，默认使用small规模")
         park_size = (50, 50)
         n_robots = 4
         n_vehicles = 10
-        n_batteries = 8
+        n_batteries = 3
+        generate_vehicles_probability = 0.001
     print("请选择调度策略：nearest（最近任务优先）、max_demand（最大需求优先）、max_priority（最大优先级）、genetic（遗传算法）")
     strat = input().strip().lower()
     if strat not in ['nearest', 'max_demand', 'max_priority', 'genetic']:
         strat = 'genetic'
 
-    env = ParkEnv(park_size=park_size, n_robots=n_robots, n_vehicles=n_vehicles, n_batteries=n_batteries, time_step=0.1)
+    env = ParkEnv(park_size=park_size, n_robots=n_robots, n_vehicles=n_vehicles, n_batteries=n_batteries, time_step=1, 
+                  generate_vehicles_probability=generate_vehicles_probability)
     strategy = TaskStrategy(env, time_step=1)
     visualizer = ChargingVisualizer(env, cell_size=12)
 
 
-    steps = 20000  # 仿真步数
+    steps = 10000  # 仿真步数
     import pygame
     from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_SPACE
     paused = False
