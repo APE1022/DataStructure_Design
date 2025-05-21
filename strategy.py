@@ -11,7 +11,7 @@ class TaskStrategy:
         self.env = env
         self.time_step = time_step
 
-    def update(self,strategy='nearest'):
+    def update(self,strategy='nearest', agent=None):
         """
         按时间步长更新调度与状态
         param :
@@ -26,6 +26,10 @@ class TaskStrategy:
             self.max_priority_task()
         elif strategy == 'genetic':
             self.genetic_task()
+        elif strategy == 'q_table':
+            if agent is None:
+                raise ValueError("Q表策略需要传入agent参数")
+            self.q_table_task(agent)
         else:
             raise ValueError("Invalid strategy. Choose 'nearest', 'max_demand', or 'max_priority'.")
         self.env.update(self.time_step)
@@ -235,4 +239,48 @@ class TaskStrategy:
                 vehicle = vehicles[v_idx]
                 vehicle.set_state('charging')
                 robot.assign_task(vehicle)
-        
+    
+    def q_table_task(self, agent):
+        """
+        基于Q表的推理分配策略：每步直接选择Q值最大的动作（机器人-车辆对）
+        """
+        state = self.env.get_status()
+        state_idx = agent.discretize_state(state)
+        assigned_robots = set()
+        assigned_vehicles = set()
+
+        # 动作空间大小 = 机器人数量 * 最大车辆数
+        for _ in range(len(self.env.robots)):
+            # 获取当前状态下所有动作的Q值
+            q_values = agent.q_table[state_idx].copy()
+
+            # 屏蔽已分配的机器人和车辆的动作
+            for action in range(len(q_values)):
+                robot_idx = action // self.env.max_vehicles
+                car_idx = action % self.env.max_vehicles
+                if (robot_idx >= len(self.env.robots) or
+                    car_idx >= len(self.env.needcharge_vehicles) or
+                    self.env.robots[robot_idx] in assigned_robots or
+                    self.env.needcharge_vehicles[car_idx] in assigned_vehicles or
+                    self.env.robots[robot_idx].state != "available" or
+                    self.env.needcharge_vehicles[car_idx].state != "needcharge"):
+                    q_values[action] = -float('inf')  # 使其不会被选中
+
+            # 选择Q值最大的动作
+            best_action = q_values.argmax()
+            if q_values[best_action] == -float('inf'):
+                break  # 没有可用动作
+
+            robot_idx = best_action // self.env.max_vehicles
+            car_idx = best_action % self.env.max_vehicles
+            robot = self.env.robots[robot_idx]
+            car = self.env.needcharge_vehicles[car_idx]
+
+            # 分配任务
+            car.set_state('charging')
+            robot.assign_task(car)
+            assigned_robots.add(robot)
+            assigned_vehicles.add(car)
+            if car in self.env.needcharge_vehicles:
+                self.env.needcharge_vehicles.remove(car)
+                self.env.charging_vehicles.append(car)
