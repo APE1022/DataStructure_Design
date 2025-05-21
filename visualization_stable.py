@@ -29,159 +29,35 @@ class ChargingVisualizer:
         self.time_step = 1.0      # 仿真物理时间步长
         self.paused = False
         self.need_restart = False
-        
-        # 添加按钮区域
-        self.buttons = {
-            # 策略按钮 (第一行)
-            "nearest": pygame.Rect(20, self.screen_height - 120, 100, 30),
-            "max_demand": pygame.Rect(130, self.screen_height - 120, 120, 30),
-            "max_priority": pygame.Rect(260, self.screen_height - 120, 120, 30),
-            "genetic": pygame.Rect(390, self.screen_height - 120, 100, 30),
-            
-            # 地图大小按钮 (第二行)
-            "small": pygame.Rect(20, self.screen_height - 80, 80, 30),
-            "medium": pygame.Rect(110, self.screen_height - 80, 80, 30),
-            "large": pygame.Rect(200, self.screen_height - 80, 80, 30),
-            
-            # 时间步长按钮 (第二行右侧)
-            "step_dec": pygame.Rect(350, self.screen_height - 80, 30, 30),
-            "step_inc": pygame.Rect(440, self.screen_height - 80, 30, 30),
-            
-            # 速度控制和重启按钮 (第三行)
-            "speed_up": pygame.Rect(20, self.screen_height - 40, 80, 30),
-            "speed_down": pygame.Rect(110, self.screen_height - 40, 80, 30),
-            "pause": pygame.Rect(200, self.screen_height - 40, 80, 30),
-            "restart": pygame.Rect(290, self.screen_height - 40, 80, 30),
-            }
-    def draw_control_panel(self):
-        # 绘制控制面板背景
-        pygame.draw.rect(self.screen, (200, 200, 200), 
-                        (10, self.screen_height - 130, self.screen_width - 20, 120))
-        
-        # 第一行标题 - 调度策略
-        pygame.draw.rect(self.screen, (220, 220, 220), 
-                        (15, self.screen_height - 125, 480, 35))
-        self.screen.blit(self.font.render("调度策略:", True, (0, 0, 0)), 
-                        (20, self.screen_height - 123))
-        
-        # 第二行标题 - 地图尺寸和时间步长
-        pygame.draw.rect(self.screen, (220, 220, 220), 
-                        (15, self.screen_height - 85, 480, 35))
-        self.screen.blit(self.font.render("地图尺寸:", True, (0, 0, 0)), 
-                        (20, self.screen_height - 83))
-        self.screen.blit(self.font.render(f"时间步长: {self.time_step:.1f}", True, (0, 0, 0)), 
-                        (300, self.screen_height - 83))
-        
-        # 第三行标题 - 速度和控制
-        pygame.draw.rect(self.screen, (220, 220, 220), 
-                        (15, self.screen_height - 45, 480, 35))
-        self.screen.blit(self.font.render("模拟控制:", True, (0, 0, 0)), 
-                        (20, self.screen_height - 43))
-        
-        # 绘制所有按钮
-        for name, rect in self.buttons.items():
-            # 设置按钮颜色
-            if name == "pause":
-                color = (255, 150, 150) if self.paused else (150, 150, 150)
-            elif (name == self.strategy and name in ["nearest", "max_demand", "max_priority", "genetic"]) or \
-            (name == self.map_size and name in ["small", "medium", "large"]):
-                color = (100, 200, 100)  # 当前选中的选项
-            elif name == "restart":
-                color = (200, 100, 100)  # 重启按钮特殊颜色
-            elif name in ["step_dec", "step_inc", "speed_up", "speed_down"]:
-                color = (150, 180, 220)  # 控制按钮颜色
-            else:
-                color = (150, 150, 150)  # 默认按钮颜色
-            
-            pygame.draw.rect(self.screen, color, rect)
-            
-            # 按钮文字/图标
-            button_labels = {
-                "nearest": "最近任务",
-                "max_demand": "最大需求",
-                "max_priority": "最大优先级",
-                "genetic": "遗传算法",
-                "speed_up": "加速",
-                "speed_down": "减速",
-                "small": "小地图",
-                "medium": "中地图",
-                "large": "大地图",
-                "restart": "重启",
-                "pause": "暂停" if not self.paused else "继续",
-                "step_dec": "-",
-                "step_inc": "+",
-            }
-            
-            txt = self.font.render(button_labels.get(name, name), True, (0, 0, 0))
-            self.screen.blit(txt, (rect.x + 5, rect.y + 5))
-        
-        # 显示当前速度
-        speed_txt = self.font.render(f"仿真速度: {11-self.step_speed}", True, (0, 0, 0))
-        self.screen.blit(speed_txt, (400, self.screen_height - 35))
-    def handle_mouse_click(self, pos):
-        # 处理鼠标点击事件
-        for name, rect in self.buttons.items():
-            if rect.collidepoint(pos):
-                # 策略选择
-                if name in ["nearest", "max_demand", "max_priority", "genetic"]:
-                    self.strategy = name
-                    return {"type": "strategy", "value": name}
-                    
-                # 地图尺寸选择
-                elif name in ["small", "medium", "large"]:
-                    self.map_size = name
-                    return {"type": "map_size", "value": name}
-                    
-                # 时间步长调整
-                elif name == "step_dec":
-                    self.time_step = max(0.1, self.time_step - 0.1)
-                    return {"type": "time_step", "value": self.time_step}
-                    
-                elif name == "step_inc":
-                    self.time_step = min(5.0, self.time_step + 0.1)
-                    return {"type": "time_step", "value": self.time_step}
-                    
-                # 速度控制
-                elif name == "speed_up":
-                    self.step_speed = max(1, self.step_speed - 1)
-                    
-                elif name == "speed_down":
-                    self.step_speed = min(20, self.step_speed + 1)
-                    
-                # 暂停/继续
-                elif name == "pause":
-                    self.paused = not self.paused
-                    return {"type": "pause", "value": self.paused}
-                    
-                # 重启仿真
-                elif name == "restart":
-                    return {"type": "restart", "value": self.map_size}
-                
-                break
-        return None
+    
     def draw_grid(self):
         for x in range(self.width + 1):
             pygame.draw.line(self.screen, (200, 200, 200), (x * self.cell_size, 0), (x * self.cell_size, self.height * self.cell_size))
         for y in range(self.height + 1):
             pygame.draw.line(self.screen, (200, 200, 200), (0, y * self.cell_size), (self.width * self.cell_size, y * self.cell_size))
 
+    # Completed
     def draw_robots(self):
         for robot in self.env.robots:
             x, y = int(robot.x * self.cell_size), int(robot.y * self.cell_size)
-            if getattr(robot, "charging_at_home", False):
-                color = (0, 255, 0)
-            elif getattr(robot, "in_action", False) and getattr(robot, "target_vehicle", None):
-                color = (0, 0, 255)
+            state = getattr(robot, "state")
+            # 根据状态设置颜色
+            if state == 'available':
+                color = (0, 255, 0)  # 绿色 - 空闲
+            elif state == 'discharging':
+                color = (255, 0, 0)  # 红色 - 充电中
+            elif state == 'swapping':
+                color = (255, 255, 0)  # 黄色 - 交换电池中
             else:
-                color = (255, 0, 0)
+                color = (0, 0, 255)  # 蓝色 - 其他状态
             pygame.draw.circle(self.screen, color, (x, y), max(5, self.cell_size // 2))
-            txt = self.font.render(f"R{getattr(robot, 'id', '?')}:{getattr(robot, 'battery_level', 0):.0f}%", True, (0, 0, 0))
-            self.screen.blit(txt, (x - 20, y + self.cell_size // 2))
+            txt = self.font.render(f"R{getattr(robot, 'id', '?')}", True, (0, 0, 0))
+            self.screen.blit(txt, (x - self.cell_size, y + self.cell_size // 2))
 
     def draw_legend(self):
         # 图例区域右下角
-        legend_x = self.screen_width - 180  # 距右边180像素
-        legend_y = self.screen_height - 90  # 距下边90像素
+        legend_x = self.screen_width - 90  # 距右边180像素
+        legend_y = self.screen_height - 180  # 距下边90像素
         spacing = 35
 
         # 电池站图标
@@ -282,7 +158,7 @@ class ChargingVisualizer:
                 fill_color = (220, 60, 60)
             pygame.draw.rect(self.screen, fill_color, (icon_x + 2, icon_y + i * (icon_h + gap) + 2, fill_w, icon_h - 4))
             # 百分比文字和编号
-            soc_text = self.font.render(f"R{getattr(robot, 'id', '?')}:{soc_val:.0f}%", True, (0, 0, 0))
+            soc_text = self.font.render(f"R{getattr(robot, 'id', '?')}:{soc_val:.0f}% state:{getattr(robot, 'state')}", True, (0, 0, 0))
             self.screen.blit(soc_text, (icon_x + icon_w + 10, icon_y + i * (icon_h + gap)))
 
     def draw_info(self, step, strategy="nearest"):

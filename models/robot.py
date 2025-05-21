@@ -44,9 +44,10 @@ class Robot:
                 self.target = None
                 self.target_point = None
                 self.state = 'available'
-        if self.battery.soc <= self.cal_distance((self.home_x,self.home_y)) * 100 / (5000 * self.battery.capacity):
+        if self.battery.soc <= self.cal_distance((self.home_x,self.home_y)) * 100 / (5000 * self.battery.capacity) and self.state == 'discharging':
             self.state = 'gohome'
             self.target_point = (self.home_x,self.home_y)
+            self.target.state = 'needcharge'
         if self.state == 'gocar':
             assert self.target_point is not None, "目标点不能为空"
             self.target_point = (self.target.parking_spot[0], self.target.parking_spot[1])

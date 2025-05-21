@@ -51,40 +51,73 @@ class TaskStrategy:
 
     def max_demand_task(self):
         """
-        最大任务优先策略：为每个空闲机器人分配电量缺口最大的未服务车辆
+        最大任务优先策略：为电量缺口/离开时间最大的未服务车辆分配最近的空闲机器人
         """
-        for robot in self.env.robots:
-            if robot.state == 'available':
-                max_gap = 0
-                target_vehicle = None
-                for v in self.env.needcharge_vehicles:
-                    if v.state == 'needcharge':
-                        if v.battery_gap > max_gap:
-                            max_gap = v.battery_gap
-                            target_vehicle = v
-                if target_vehicle:
+        self.env.needcharge_vehicles.sort(key=lambda v: (v.battery_gap / v.departure_time), reverse=True)
+        index = 0
+        if index < len(self.env.needcharge_vehicles):
+            for robot in self.env.robots:
+                if robot.state == 'available':
+                    target_vehicle = self.env.needcharge_vehicles[index]
                     target_vehicle.set_state('charging')
                     robot.assign_task(target_vehicle)
+                    index += 1
+                    if index >= len(self.env.needcharge_vehicles):
+                        break
 
     def max_priority_task(self):
         """
-        最大优先级策略：为每个空闲机器人分配 battery_gap/离开时间 最大的未服务车辆
+        最大任务优先策略：为电量缺口/离开时间最大的未服务车辆分配最近的空闲机器人
         """
-        for robot in self.env.robots:
-            if robot.state == 'available':
-                max_priority = -float('inf')
-                target_vehicle = None
-                for v in self.env.needcharge_vehicles:
-                    if v.state == 'needcharge':
-                        # 优先级 = 电量缺口 / 剩余离开时间
-                        time_left = max(1, v.departure_time - self.env.time)  # 防止除0
-                        priority = v.battery_gap / time_left
-                        if priority > max_priority:
-                            max_priority = priority
-                            target_vehicle = v
-                if target_vehicle:
-                    target_vehicle.set_state('charging')
-                    robot.assign_task(target_vehicle)
+        # 计算每辆车的优先级指标 (电量缺口/离开时间)
+        prioritized_vehicles = []
+        for vehicle in self.env.needcharge_vehicles:
+            priority = vehicle.battery_gap / max(0.1, vehicle.departure_time)  # 防止除以0
+            prioritized_vehicles.append((priority, vehicle))
+        
+        # 按优先级从高到低排序
+        prioritized_vehicles.sort(reverse=True)
+        
+        # 记录已分配的机器人和车辆
+        assigned_robots = set()
+        assigned_vehicles = set()
+        
+        # 遍历高优先级的车辆
+        for _, vehicle in prioritized_vehicles:
+            if vehicle in assigned_vehicles:
+                continue
+                
+            # 找到距离该车辆最近的空闲机器人
+            min_dist = float('inf')
+            closest_robot = None
+            
+            for robot in self.env.robots:
+                if robot.state == 'available' and robot not in assigned_robots:
+                    # 计算距离
+                    dist = ((robot.x - vehicle.parking_spot[0])**2 + 
+                            (robot.y - vehicle.parking_spot[1])**2)**0.5
+                    
+                    if dist < min_dist:
+                        min_dist = dist
+                        closest_robot = robot
+            
+            # 如果找到适合的机器人，分配任务
+            if closest_robot:
+                vehicle.set_state('charging')
+                closest_robot.assign_task(vehicle)
+                
+                # 标记已分配
+                assigned_robots.add(closest_robot)
+                assigned_vehicles.add(vehicle)
+                
+                # 从待充电车辆列表移到充电车辆列表
+                if vehicle in self.env.needcharge_vehicles:
+                    self.env.needcharge_vehicles.remove(vehicle)
+                    self.env.charging_vehicles.append(vehicle)
+            
+            # 如果没有空闲机器人了，结束分配
+            if len(assigned_robots) >= len([r for r in self.env.robots if r.state == 'available']):
+                break
 
     def genetic_task(self, population_size=20, generations=30, mutation_rate=0.1):
         """

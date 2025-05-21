@@ -101,6 +101,9 @@ class ParkEnv:
                 self.failed_vehicles.append(car)
                 self.charging_vehicles.remove(car)
                 self.n_vehicles -= 1
+            elif car.state == 'needcharge':
+                self.needcharge_vehicles.append(car)
+                self.charging_vehicles.remove(car)
             
         # 电池站为所有电池充电
         self.battery_station.update(time_step)
