@@ -11,7 +11,7 @@ class TaskStrategy:
         self.env = env
         self.time_step = time_step
 
-    def update(self,strategy='nearest'):
+    def update(self, strategy='nearest'):
         """
         按时间步长更新调度与状态
         param :
@@ -26,10 +26,20 @@ class TaskStrategy:
             self.max_priority_task()
         elif strategy == 'genetic':
             self.genetic_task()
+        elif strategy == 'battery_management':
+            self.battery_management_task()
+        elif strategy == 'cluster_service':
+            self.cluster_service_task()
+        elif strategy == 'multi_objective':
+            self.multi_objective_task()
+        elif strategy == 'reinforcement_learning':
+            self.reinforcement_learning_task()
+        elif strategy == 'dynamic':
+            self.dynamic_strategy_task()
         else:
-            raise ValueError("Invalid strategy. Choose 'nearest', 'max_demand', or 'max_priority'.")
+            raise ValueError("Invalid strategy. Choose from available strategies.")
         self.env.update(self.time_step)
-    
+
     def nearest_task(self):
         """
         最近任务优先策略：为每个空闲机器人分配距离最近的未服务车辆
@@ -235,4 +245,65 @@ class TaskStrategy:
                 vehicle = vehicles[v_idx]
                 vehicle.set_state('charging')
                 robot.assign_task(vehicle)
+    
+    def multi_objective_task(self):
+        """
+        多目标优化策略：同时考虑任务紧急度、距离、机器人电量和充电站负载平衡
+        """
+        # 获取所有可用机器人
+        available_robots = [r for r in self.env.robots if r.state == 'available']
         
+        if not available_robots or not self.env.needcharge_vehicles:
+            return
+        
+        # 为每个机器人-车辆对计算综合分数
+        assignments = []
+        
+        for robot in available_robots:
+            for vehicle in self.env.needcharge_vehicles:
+                # 计算因素
+                distance = ((robot.x - vehicle.parking_spot[0])**2 + 
+                        (robot.y - vehicle.parking_spot[1])**2)**0.5
+                
+                urgency = vehicle.battery_gap / max(0.1, vehicle.departure_time)
+                
+                robot_energy = robot.battery.soc
+                
+                # 计算充电站的负荷，考虑电池站的位置
+                battery_station_x, battery_station_y = self.env.battery_station.location # 假设电池站在中心
+                distance_to_station = ((robot.x - battery_station_x)**2 + 
+                                    (robot.y - battery_station_y)**2)**0.5
+                
+                # 综合评分 (权重可调整)
+                # 紧急度越高越好，距离越短越好，机器人电量越高越好
+                score = (0.4 * urgency) + (0.3 * (100 / (distance + 1))) + (0.2 * (robot_energy / 100)) + (0.1 * (100 / (distance_to_station + 1)))
+                
+                assignments.append((score, robot, vehicle))
+        
+        # 修改排序方式：只按照分数排序，忽略其他元素的比较
+        assignments = sorted(assignments, key=lambda x: x[0], reverse=True)
+        
+        # 记录已分配的资源
+        assigned_robots = set()
+        assigned_vehicles = set()
+        
+        # 根据分数进行分配
+        for score, robot, vehicle in assignments:
+            if robot in assigned_robots or vehicle in assigned_vehicles:
+                continue
+                
+            # 分配任务
+            vehicle.set_state('charging')
+            robot.assign_task(vehicle)
+            
+            assigned_robots.add(robot)
+            assigned_vehicles.add(vehicle)
+            
+            # 更新列表
+            if vehicle in self.env.needcharge_vehicles:
+                self.env.needcharge_vehicles.remove(vehicle)
+                self.env.charging_vehicles.append(vehicle)
+            
+            # 如果所有机器人都已分配，结束循环
+            if len(assigned_robots) >= len(available_robots):
+                break

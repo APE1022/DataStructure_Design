@@ -58,6 +58,10 @@ class StartupScreen:
             'show_stats': True
         }
         
+        # 激活的输入框
+        self.active_input = None
+        self.input_text = ""
+        
         # 按钮区域定义
         self.buttons = {
             # 地图大小按钮
@@ -65,26 +69,33 @@ class StartupScreen:
             'medium': pygame.Rect(355, 150, 90, 40),
             'large': pygame.Rect(460, 150, 90, 40),
             
-            # 策略按钮
+            # 策略按钮 - 第一行
             'nearest': pygame.Rect(250, 220, 145, 40),
             'max_demand': pygame.Rect(405, 220, 145, 40),
+            
+            # 策略按钮 - 第二行
             'max_priority': pygame.Rect(250, 270, 145, 40),
             'genetic': pygame.Rect(405, 270, 145, 40),
             
-            # 时间步长按钮
-            'time_dec': pygame.Rect(320, 340, 40, 40),
-            'time_inc': pygame.Rect(440, 340, 40, 40),
+            # 策略按钮 - 第三行 (新增)
+            'multi_objective': pygame.Rect(250, 320, 145, 40),
+            'battery_management': pygame.Rect(405, 320, 145, 40),
             
-            # 速度按钮
-            'speed_dec': pygame.Rect(320, 400, 40, 40),
-            'speed_inc': pygame.Rect(440, 400, 40, 40),
+            # 时间步长按钮和输入框
+            'time_dec': pygame.Rect(300, 390, 40, 40),
+            'time_inc': pygame.Rect(440, 390, 40, 40),
+            'time_input': pygame.Rect(350, 390, 80, 40),  # 新增时间步长输入框
             
-            # 调试选项
-            'debug_toggle': pygame.Rect(270, 460, 30, 30),
-            'stats_toggle': pygame.Rect(480, 460, 30, 30),
+            # 速度按钮 (下移)
+            'speed_dec': pygame.Rect(320, 450, 40, 40),
+            'speed_inc': pygame.Rect(440, 450, 40, 40),
             
-            # 开始按钮
-            'start': pygame.Rect(300, 520, 200, 50)
+            # 调试选项 (下移)
+            'debug_toggle': pygame.Rect(270, 510, 30, 30),
+            'stats_toggle': pygame.Rect(480, 510, 30, 30),
+            
+            # 开始按钮 (下移)
+            'start': pygame.Rect(300, 570, 200, 50)
         }
         
         # 定义标签
@@ -117,31 +128,54 @@ class StartupScreen:
         # 绘制策略选择
         strategy_label = self.font_subtitle.render(self.labels['strategy'], True, COLORS['black'])
         self.screen.blit(strategy_label, (120, 240))
-        self._draw_button_group(['nearest', 'max_demand', 'max_priority', 'genetic'], self.configs['strategy'],
-                               {'nearest': '最近任务', 'max_demand': '最大需求', 
-                                'max_priority': '最高优先级', 'genetic': '遗传算法'})
+        self._draw_button_group(
+            ['nearest', 'max_demand', 'max_priority', 'genetic', 'multi_objective', 'battery_management'], 
+            self.configs['strategy'],
+            {'nearest': '最近任务', 'max_demand': '最大需求', 
+             'max_priority': '最高优先级', 'genetic': '遗传算法', 
+             'multi_objective': '多目标优化', 'battery_management': '电池管理'}
+        )
         
         # 绘制时间步长选择
         time_label = self.font_subtitle.render(self.labels['time_step'], True, COLORS['black'])
-        self.screen.blit(time_label, (120, 350))
+        self.screen.blit(time_label, (120, 400))
+        
+        # 减少按钮
         pygame.draw.rect(self.screen, COLORS['button_normal'], self.buttons['time_dec'])
         pygame.draw.rect(self.screen, COLORS['black'], self.buttons['time_dec'], 2)
         dec_text = self.font_normal.render('-', True, COLORS['black'])
         self.screen.blit(dec_text, (self.buttons['time_dec'].centerx - dec_text.get_width()//2, 
                                    self.buttons['time_dec'].centery - dec_text.get_height()//2))
         
-        time_value = self.font_normal.render(f"{self.configs['time_step']:.1f}", True, COLORS['black'])
-        self.screen.blit(time_value, (380 - time_value.get_width()//2, 350))
+        # 时间步长输入框
+        input_color = COLORS['button_selected'] if self.active_input == 'time_step' else COLORS['white']
+        pygame.draw.rect(self.screen, input_color, self.buttons['time_input'])
+        pygame.draw.rect(self.screen, COLORS['black'], self.buttons['time_input'], 2)
         
+        # 显示当前输入或配置值
+        if self.active_input == 'time_step':
+            time_value_text = self.input_text + '|' if pygame.time.get_ticks() % 1000 < 500 else self.input_text + ' '
+        else:
+            time_value_text = f"{self.configs['time_step']:.1f}"
+            
+        time_value = self.font_normal.render(time_value_text, True, COLORS['black'])
+        self.screen.blit(time_value, (self.buttons['time_input'].centerx - time_value.get_width()//2, 
+                                    self.buttons['time_input'].centery - time_value.get_height()//2))
+        
+        # 增加按钮
         pygame.draw.rect(self.screen, COLORS['button_normal'], self.buttons['time_inc'])
         pygame.draw.rect(self.screen, COLORS['black'], self.buttons['time_inc'], 2)
         inc_text = self.font_normal.render('+', True, COLORS['black'])
         self.screen.blit(inc_text, (self.buttons['time_inc'].centerx - inc_text.get_width()//2, 
                                    self.buttons['time_inc'].centery - inc_text.get_height()//2))
         
+        # 提示文字
+        tip_text = self.font_normal.render("点击输入框可直接输入步长值", True, COLORS['dark_grey'])
+        self.screen.blit(tip_text, (300, 370))
+        
         # 绘制速度选择
         speed_label = self.font_subtitle.render(self.labels['speed'], True, COLORS['black'])
-        self.screen.blit(speed_label, (120, 410))
+        self.screen.blit(speed_label, (120, 460))
         pygame.draw.rect(self.screen, COLORS['button_normal'], self.buttons['speed_dec'])
         pygame.draw.rect(self.screen, COLORS['black'], self.buttons['speed_dec'], 2)
         dec_text = self.font_normal.render('-', True, COLORS['black'])
@@ -149,7 +183,7 @@ class StartupScreen:
                                    self.buttons['speed_dec'].centery - dec_text.get_height()//2))
         
         speed_value = self.font_normal.render(f"{self.configs['speed']}", True, COLORS['black'])
-        self.screen.blit(speed_value, (380 - speed_value.get_width()//2, 410))
+        self.screen.blit(speed_value, (380 - speed_value.get_width()//2, 460))
         
         pygame.draw.rect(self.screen, COLORS['button_normal'], self.buttons['speed_inc'])
         pygame.draw.rect(self.screen, COLORS['black'], self.buttons['speed_inc'], 2)
@@ -159,7 +193,7 @@ class StartupScreen:
         
         # 绘制调试选项
         debug_label = self.font_subtitle.render(self.labels['debug'], True, COLORS['black'])
-        self.screen.blit(debug_label, (120, 470))
+        self.screen.blit(debug_label, (120, 520))
         pygame.draw.rect(self.screen, COLORS['white'], self.buttons['debug_toggle'])
         pygame.draw.rect(self.screen, COLORS['black'], self.buttons['debug_toggle'], 2)
         if self.configs['debug']:
@@ -172,7 +206,7 @@ class StartupScreen:
         
         # 绘制统计信息选项
         stats_label = self.font_subtitle.render(self.labels['show_stats'], True, COLORS['black'])
-        self.screen.blit(stats_label, (320, 470))
+        self.screen.blit(stats_label, (320, 520))
         pygame.draw.rect(self.screen, COLORS['white'], self.buttons['stats_toggle'])
         pygame.draw.rect(self.screen, COLORS['black'], self.buttons['stats_toggle'], 2)
         if self.configs['show_stats']:
@@ -209,6 +243,32 @@ class StartupScreen:
             self.screen.blit(text, (self.buttons[name].centerx - text.get_width()//2, 
                                    self.buttons[name].centery - text.get_height()//2))
     
+    def handle_key_input(self, event):
+        """处理键盘输入"""
+        if self.active_input == 'time_step':
+            if event.key == pygame.K_BACKSPACE:
+                # 删除字符
+                self.input_text = self.input_text[:-1]
+            elif event.key == pygame.K_RETURN:
+                # 完成输入，更新配置
+                try:
+                    value = float(self.input_text)
+                    # 限制在合理范围内
+                    if 0.1 <= value <= 10.0:
+                        self.configs['time_step'] = value
+                    self.active_input = None
+                    self.input_text = ""
+                except ValueError:
+                    # 输入无效，恢复原值
+                    self.active_input = None
+                    self.input_text = ""
+            elif event.unicode.isnumeric() or event.unicode == '.':
+                # 只允许输入数字和小数点
+                if event.unicode == '.' and '.' in self.input_text:
+                    return  # 已有小数点，不再添加
+                if len(self.input_text) < 5:  # 限制长度
+                    self.input_text += event.unicode
+    
     def run(self):
         """运行启动界面，返回用户设置的参数"""
         running = True
@@ -225,12 +285,22 @@ class StartupScreen:
                     if event.key == K_ESCAPE:
                         pygame.quit()
                         sys.exit()
-                    elif event.key == K_RETURN:
+                    elif event.key == K_RETURN and self.active_input is None:
                         result = self.configs.copy()
                         running = False
+                    else:
+                        self.handle_key_input(event)
                         
                 elif event.type == MOUSEBUTTONDOWN:
                     pos = event.pos
+                    
+                    # 检查是否点击了输入框
+                    if self.buttons['time_input'].collidepoint(pos):
+                        self.active_input = 'time_step'
+                        self.input_text = str(self.configs['time_step'])
+                        continue
+                    else:
+                        self.active_input = None
                     
                     # 处理地图大小按钮
                     for size in ['small', 'medium', 'large']:
@@ -238,8 +308,9 @@ class StartupScreen:
                             self.configs['map_size'] = size
                     
                     # 处理策略按钮
-                    for strategy in ['nearest', 'max_demand', 'max_priority', 'genetic']:
-                        if self.buttons[strategy].collidepoint(pos):
+                    for strategy in ['nearest', 'max_demand', 'max_priority', 'genetic', 
+                                    'multi_objective', 'battery_management']:
+                        if strategy in self.buttons and self.buttons[strategy].collidepoint(pos):
                             self.configs['strategy'] = strategy
                     
                     # 处理时间步长按钮
@@ -273,6 +344,8 @@ class StartupScreen:
         
         return result
 
+
+# 添加在 main 函数之前
 
 def create_environment(map_size, time_step=1.0):
     """根据地图大小创建环境"""
@@ -312,7 +385,6 @@ def create_environment(map_size, time_step=1.0):
     )
     
     return env
-
 
 def main():
     """完全交互式主函数"""
