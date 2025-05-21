@@ -1,24 +1,24 @@
 import numpy as np
+import random
 from models.battery import Battery
 
 class Car:
-    def __init__(self, id, departure_time, parking_spot):
+    def __init__(self, id, park_size):
         self.id = id  # 车辆编号
-        self.departure_time = departure_time  # 离开时间
-        self.parking_spot = parking_spot  # 停车位置 (x, y)
+        self.departure_time = int(np.clip(np.random.normal(60, 10), 40, 100)) * 60  # 离开时间
+        self.parking_spot = (random.randint(0, park_size[0]), random.randint(0, park_size[1]))  # 停车位置 (x, y)
         self.battery = Battery(
             voltage=np.random.choice([400, 800]), # 电池架构：400V或800V
             capacity=np.clip(np.random.normal(90, 10), 65, 115), # 电池容量：65-115kWh，正态分布
-            soc=np.random.uniform(5, 50), # 到达电量：5-50%，均匀分布
+            soc=np.clip(np.random.normal(15, 10), 0, 64), # 到达电量：0-64%，正态分布，中心点15
             state='nonfull' 
         )
         self.state = 'needcharge' # 'charging', 'completed', 'needcharge', 'failed'
         # 离开所需电量：70-100%，正态分布
-        self.required_soc = np.clip(np.random.normal(85, 10), 70, 100)
+        self.required_soc = np.clip(np.random.normal(80, 10), 65, 100)
         # 所需电量
         self.battery_gap = (self.required_soc - self.battery.soc) * self.battery.capacity / 100
-        self.static_battery_gap = self.battery_gap  # 只在这里赋值一次
-        # self.battery_gap = max(self.battery_gap, 0)  # 确保电池差值不为负
+        self.static_battery_gap = self.battery_gap 
         self.time = 0
         self.waittime = 0
         self.static_battery_gap = 0

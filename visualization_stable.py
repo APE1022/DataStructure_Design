@@ -1,5 +1,5 @@
 import pygame
-from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_SPACE, MOUSEBUTTONDOWN
+from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_SPACE, MOUSEBUTTONDOWN, K_RETURN
 
 pygame.init()
 import sys
@@ -20,10 +20,10 @@ COLORS = {
     'background': (240, 240, 240),
     'title': (50, 50, 120)
 }
-
+# TODO：未检查
 class StartupScreen:
     """启动界面类，处理所有参数设置"""
-    def __init__(self, screen_width=800, screen_height=600):
+    def __init__(self, screen_width=800, screen_height=700):
         # 设置屏幕
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -341,15 +341,15 @@ class StartupScreen:
         return result
     
 class ChargingVisualizer:
-    def __init__(self, env, cell_size=12, info_height=100):
+    def __init__(self, env, cell_size=12, info_height=200 ,info_width=400):
         self.env = env
         if cell_size is None:
         # 提供一个默认值
             self.cell_size = 12
         else:
-            self.cell_size = 10
+            self.cell_size = cell_size
         self.width, self.height = env.park_size
-        self.screen_width = self.width * cell_size
+        self.screen_width = self.width * cell_size + info_width
         self.screen_height = self.height * cell_size + info_height
         self.info_height = info_height
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
@@ -437,7 +437,7 @@ class ChargingVisualizer:
             # 电池信息（右上角）
             battery_status = self.env.battery_station.get_status()
             max_soc = self.env.battery_station.get_maxsoc()
-            icon_x = self.screen_width - 160
+            icon_x = self.screen_width - 120
             icon_y = 20
             icon_w, icon_h = 30, 14
             gap = 10
@@ -474,7 +474,7 @@ class ChargingVisualizer:
     # Temp Completed，TODO: 需要改变显示位置
     def draw_robot_battery_info(self):
         # 左上角显示机器人电量
-        icon_x = 20
+        icon_x = self.screen_width - 360
         icon_y = 20
         icon_w, icon_h = 30, 14
         gap = 10

@@ -50,14 +50,7 @@ class ParkEnv:
     def random_generate_vehicles(self, probability=0.001):
         if random.random() < probability and self.n_vehicles < self.max_vehicles:
             # 离开时间（45~120min，高斯分布）
-            stay = int(np.clip(np.random.normal(90, 20), 60, 120)) * 60
-            # 停车点
-            spot = (random.randint(0, self.park_size[0]), random.randint(0, self.park_size[1]))
-            car = Car(
-                id=self.vehicles_index,
-                departure_time=stay,
-                parking_spot=spot,
-                )
+            car = Car(id=self.vehicles_index, park_size=self.park_size)
             self.needcharge_vehicles.append(car)
             self.vehicles_index += 1
             self.n_vehicles += 1

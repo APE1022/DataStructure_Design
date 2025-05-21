@@ -73,14 +73,19 @@ def main():
     while running and step < max_steps:
         # 处理事件
         for event in pygame.event.get():
+            # 退出事件
             if event.type == QUIT:
                 running = False
+            # 键盘事件
             elif event.type == KEYDOWN:
+                # ESC键退出
                 if event.key == K_ESCAPE:
                     running = False
+                # 空格键暂停/继续
                 elif event.key == K_SPACE:
                     paused = not paused
                     visualizer.paused = paused
+            # 鼠标点击事件 TODO：暂时没用到
             elif event.type == MOUSEBUTTONDOWN:
                 result = visualizer.handle_mouse_click(event.pos)
                 if result:
@@ -126,9 +131,8 @@ def main():
         # 更新仿真
         if not paused:
             strategy.update(strategy=current_strategy)
-
             
-            if step % 1000 == 0:
+            if step % 1000 == 0 and step > 0: # TODO：调试时打印
                 print(f"Step {step}, 策略: {current_strategy}, 时间步长: {current_time_step}")
                 print(env.get_status())
                 

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-'''
-
-'''
 from qlearning_agent import QLearningAgent
+import numpy as np
+from scipy.optimize import linear_sum_assignment
+
 class TaskStrategy:
     """
     调度策略类，支持最近任务优先和最大任务优先
@@ -48,38 +48,104 @@ class TaskStrategy:
 
     def nearest_task(self):
         """
-        最近任务优先策略：为每个空闲机器人分配距离最近的未服务车辆
+        最近任务优先策略：为所有空闲机器人分配未服务车辆，使得总距离最小
+        使用匈牙利算法求解最优分配
         """
-        for robot in self.env.robots:
-            if robot.state == 'available':
-                min_dist = 10000
-                target_vehicle = None
-                for v in self.env.needcharge_vehicles:
-                    dist = (abs(robot.x - v.parking_spot[0])**2 + abs(robot.y - v.parking_spot[1])**2)**0.5
-                    if dist < min_dist:
-                        min_dist = dist
-                        target_vehicle = v
-                if target_vehicle:
-                    target_vehicle.set_state('charging')
-                    self.env.needcharge_vehicles.remove(target_vehicle)
-                    self.env.charging_vehicles.append(target_vehicle)
-                    robot.assign_task(target_vehicle)
-
+        # 获取可用的机器人和车辆
+        available_robots = [r for r in self.env.robots if r.state == 'available']
+        vehicles = self.env.needcharge_vehicles
+        
+        # 如果没有可用资源，直接返回
+        if not available_robots or not vehicles:
+            return
+        
+        # 构建成本矩阵（距离矩阵）
+        cost_matrix = []
+        for robot in available_robots:
+            row = []
+            for vehicle in vehicles:
+                # 计算欧氏距离作为成本
+                dist = ((robot.x - vehicle.parking_spot[0])**2 + 
+                    (robot.y - vehicle.parking_spot[1])**2)**0.5
+                row.append(dist)
+            cost_matrix.append(row)
+        
+        # 使用匈牙利算法求解最优分配
+        # 转换为numpy数组
+        cost_matrix = np.array(cost_matrix)
+        
+        # 求解最小成本分配问题
+        row_ind, col_ind = linear_sum_assignment(cost_matrix)
+        
+        # 根据分配结果执行任务分配
+        for i, robot_idx in enumerate(row_ind):
+            if i < len(col_ind):  # 确保有匹配的车辆
+                vehicle_idx = col_ind[i]
+                
+                # 确保索引有效
+                if robot_idx < len(available_robots) and vehicle_idx < len(vehicles):
+                    robot = available_robots[robot_idx]
+                    vehicle = vehicles[vehicle_idx]
+                    
+                    # 分配任务
+                    vehicle.set_state('charging')
+                    robot.assign_task(vehicle)
+                    
+                    # 从待充电列表移动到充电列表 TODO
+                    if vehicle in self.env.needcharge_vehicles:
+                        self.env.needcharge_vehicles.remove(vehicle)
+                        self.env.charging_vehicles.append(vehicle)
+                    
     def max_demand_task(self):
         """
-        最大任务优先策略：为电量缺口/离开时间最大的未服务车辆分配最近的空闲机器人
+        最大任务优先策略：为电量缺口最大的未服务车辆分配最近的空闲机器人
         """
-        self.env.needcharge_vehicles.sort(key=lambda v: (v.battery_gap / v.departure_time), reverse=True)
-        index = 0
-        if index < len(self.env.needcharge_vehicles):
+        # 如果没有需要分配的资源，直接返回
+        if not self.env.needcharge_vehicles or not any(r.state == 'available' for r in self.env.robots):
+            return
+        
+        # 按电量缺口从大到小排序车辆
+        prioritized_vehicles = sorted(self.env.needcharge_vehicles, 
+                                    key=lambda v: v.battery_gap, 
+                                    reverse=True)
+        
+        # 记录已分配的机器人和车辆
+        assigned_robots = set()
+        assigned_vehicles = set()
+        
+        # 为每辆高需求车辆分配最近的机器人
+        for vehicle in prioritized_vehicles:
+            # 找到距离该车辆最近的空闲机器人
+            min_dist = float('inf')
+            closest_robot = None
+            
             for robot in self.env.robots:
-                if robot.state == 'available':
-                    target_vehicle = self.env.needcharge_vehicles[index]
-                    target_vehicle.set_state('charging')
-                    robot.assign_task(target_vehicle)
-                    index += 1
-                    if index >= len(self.env.needcharge_vehicles):
-                        break
+                if robot.state == 'available' and robot not in assigned_robots:
+                    # 计算距离
+                    dist = ((robot.x - vehicle.parking_spot[0])**2 + 
+                        (robot.y - vehicle.parking_spot[1])**2)**0.5
+                    
+                    if dist < min_dist:
+                        min_dist = dist
+                        closest_robot = robot
+            
+            # 如果找到适合的机器人，分配任务
+            if closest_robot:
+                vehicle.set_state('charging')
+                closest_robot.assign_task(vehicle)
+                
+                # 标记已分配
+                assigned_robots.add(closest_robot)
+                assigned_vehicles.add(vehicle)
+                
+                # 从待充电车辆列表移到充电车辆列表
+                if vehicle in self.env.needcharge_vehicles:
+                    self.env.needcharge_vehicles.remove(vehicle)
+                    self.env.charging_vehicles.append(vehicle)
+            
+            # 如果没有空闲机器人了，结束分配
+            if len(assigned_robots) >= len([r for r in self.env.robots if r.state == 'available']):
+                break
 
     def max_priority_task(self):
         """

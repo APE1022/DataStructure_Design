@@ -9,25 +9,28 @@ def create_environment(map_size, time_step=1.0):
     """根据地图大小创建环境"""
     config = {
         'small': {
-            'park_size': (50, 50),
+            'park_size': (100, 100),
             'n_robots': 4,
             'n_vehicles': 10,
             'n_batteries': 3,
-            'generate_vehicles_probability': 0.1
+            'generate_vehicles_probability': 0.1,
+            'cell_size': 11
         },
         'medium': {
-            'park_size': (100, 100),
+            'park_size': (200, 200),
             'n_robots': 16,
             'n_vehicles': 40,
             'n_batteries': 12,
-            'generate_vehicles_probability': 0.005
+            'generate_vehicles_probability': 0.005,
+            'cell_size': 5
         },
         'large': {
             'park_size': (500, 500),
             'n_robots': 40,
             'n_vehicles': 100,
             'n_batteries': 30,
-            'generate_vehicles_probability': 0.012
+            'generate_vehicles_probability': 0.5,
+            'cell_size': 2
         }
     }
     
@@ -42,7 +45,7 @@ def create_environment(map_size, time_step=1.0):
         generate_vehicles_probability=settings['generate_vehicles_probability']
     )
     
-    return env
+    return env,settings['cell_size']
 
 def main():
     """完全交互式主函数"""
@@ -65,9 +68,9 @@ def main():
     show_stats = configs['show_stats']
     
     # 创建初始环境
-    env = create_environment(current_map_size, current_time_step)
+    env, cell_size = create_environment(current_map_size, current_time_step)
     strategy = TaskStrategy(env, time_step=current_time_step)
-    visualizer = ChargingVisualizer(env)
+    visualizer = ChargingVisualizer(env, cell_size=cell_size)
     
     # 设置初始UI状态
     visualizer.strategy = current_strategy
