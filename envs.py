@@ -86,7 +86,6 @@ class ParkEnv:
             if car.state == 'charging':
                 self.charging_vehicles.append(car)
                 self.needcharge_vehicles.remove(car)
-                self.n_vehicles -= 1
             elif car.state == 'failed':
                 self.failed_vehicles.append(car)
                 self.needcharge_vehicles.remove(car)

@@ -76,7 +76,6 @@ class QLearningAgent:
         for ep in range(episodes):
             self.env = copy.deepcopy(self.static_env)
             # 保证每次重置后车辆生成概率仍为1
-            self.env.generate_vehicles_probability = 1
             state = self.env.get_status()
             total_reward = 0
 
@@ -96,7 +95,7 @@ class QLearningAgent:
                 else:
                     reward = self._calc_reward_nearest(debug=debug)
                 # 判断所有车辆是否已完成或失败
-                done = (len(self.env.needcharge_vehicles) + len(self.env.charging_vehicles)) == 0
+                done = 0
                 self.update_q_table(state, action, reward, next_state, done)
                 state = next_state
                 total_reward += reward
@@ -126,9 +125,11 @@ class QLearningAgent:
             if (ep + 1) % log_interval == 0:
                 completed_num = len(self.env.completed_vehicles)
                 failed_num = len(self.env.failed_vehicles)
+                total_generated = self.env.vehicles_index
+                rgv_count = self.env.random_generate_vehicles_count  # 新增
                 print(f"Episode {ep+1}, Total Reward: {total_reward:.2f}, Exploration Rate: {self.exploration_rate:.3f}, "
-                    f"Completed: {completed_num}, Failed: {failed_num}")  
-                
+                    f"Completed: {completed_num}, Failed: {failed_num}, Total Generated: {total_generated}")
+
     def _calc_reward_most(self, debug=False):
         reward = 0
         for car in self.env.failed_vehicles:
