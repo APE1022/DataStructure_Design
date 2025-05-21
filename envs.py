@@ -75,24 +75,23 @@ class ParkEnv:
         self.random_generate_vehicles(self.generate_vehicles_probability)
 
         # 更新所有机器人
-        for robot in self.robots:
+        for robot in self.robots[:]:
             if robot.state == 'needswap':
                 self.battery_station.robotsqueue.append(robot)
                 robot.set_state('swapping')
             robot.update(time_step)
 
-        for car in self.needcharge_vehicles:
+        for car in self.needcharge_vehicles[:]:
             car.update(self.time_step)
             if car.state == 'charging':
                 self.charging_vehicles.append(car)
                 self.needcharge_vehicles.remove(car)
-                # self.n_vehicles -= 1
             elif car.state == 'failed':
                 self.failed_vehicles.append(car)
                 self.needcharge_vehicles.remove(car)
                 self.n_vehicles -= 1
-
-        for car in self.charging_vehicles:
+        
+        for car in self.charging_vehicles[:]:
             car.update(self.time_step)
             if car.state == 'completed':
                 self.completed_vehicles.append(car)
