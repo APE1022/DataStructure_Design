@@ -1,9 +1,35 @@
 import pygame
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_SPACE, MOUSEBUTTONDOWN, K_RETURN
-
-pygame.init()
 import sys
-from pygame.locals import MOUSEBUTTONDOWN
+pygame.init()
+
+"""
+可视化与启动界面模块 (Visualization & StartupScreen Module)
+===========================================================
+本模块基于 pygame 实现了园区充电调度仿真系统的图形化界面，包含仿真参数设置的启动界面（StartupScreen）和主仿真可视化界面（ChargingVisualizer）。
+
+主要功能：
+- 启动界面支持地图大小、调度策略、时间步长、仿真速度、调试模式等参数的可视化选择与输入
+- 主仿真界面动态显示机器人、车辆、电池站的状态与分布
+- 支持机器人电量、电池站电量、车辆状态等信息的实时展示
+- 提供“重新开始”按钮，可在仿真过程中返回初始设置界面
+- 支持多种调度策略的可视化切换与参数调整
+- 交互友好，支持鼠标点击与键盘输入
+
+设计说明：
+本模块采用面向对象设计，StartupScreen 用于仿真参数的初始化选择，ChargingVisualizer 用于仿真过程的动态可视化。界面布局自适应不同地图和信息栏尺寸，支持多平台中文字体显示。
+
+用法示例：
+    # 启动参数设置界面
+    configs = StartupScreen().run()
+    # 创建环境与可视化器
+    visualizer = ChargingVisualizer(env, cell_size=cell_size)
+    # 主循环中调用 visualizer.render(step, strategy)
+
+创建/维护者: 姚炜博、李喆葳
+最后修改: 2025-05-23
+版本: 1.0.0
+"""
 
 # 颜色定义
 COLORS = {
@@ -20,6 +46,7 @@ COLORS = {
     'background': (240, 240, 240),
     'title': (50, 50, 120)
 }
+
 # TODO：未检查
 class StartupScreen:
     """启动界面类，处理所有参数设置"""
@@ -51,7 +78,7 @@ class StartupScreen:
             'time_step': 1.0,
             'speed': 5,
             'debug': False,
-            'show_stats': True
+            'show_stats': False
         }
         
         # 激活的输入框
@@ -74,7 +101,7 @@ class StartupScreen:
             'genetic': pygame.Rect(405, 270, 145, 40),
             
             # 策略按钮 - 第三行 (新增)
-            'multi_objective': pygame.Rect(250, 320, 145, 40),
+            'hyper_heuristic': pygame.Rect(250, 320, 145, 40),
             'RL': pygame.Rect(405, 320, 145, 40),
             
             # 时间步长按钮和输入框
@@ -125,11 +152,11 @@ class StartupScreen:
         strategy_label = self.font_subtitle.render(self.labels['strategy'], True, COLORS['black'])
         self.screen.blit(strategy_label, (120, 240))
         self._draw_button_group(
-            ['nearest', 'max_demand', 'max_priority', 'genetic', 'multi_objective', 'RL'], 
+            ['nearest', 'max_demand', 'max_priority', 'genetic', 'hyper_heuristic', 'RL'], 
             self.configs['strategy'],
             {'nearest': '最近任务', 'max_demand': '最大需求', 
              'max_priority': '最高优先级', 'genetic': '遗传算法', 
-             'multi_objective': '多目标优化', 'RL': '强化学习'}
+             'hyper_heuristic': '多目标优化', 'RL': '强化学习'}
         )
         
         # 绘制时间步长选择
@@ -305,7 +332,7 @@ class StartupScreen:
                     
                     # 处理策略按钮
                     for strategy in ['nearest', 'max_demand', 'max_priority', 'genetic', 
-                                    'multi_objective', 'RL']:
+                                    'hyper_heuristic', 'RL']:
                         if strategy in self.buttons and self.buttons[strategy].collidepoint(pos):
                             self.configs['strategy'] = strategy
                     
@@ -341,11 +368,11 @@ class StartupScreen:
         return result
     
 class ChargingVisualizer:
-    def __init__(self, env, cell_size=12, info_height=200 ,info_width=400):
+    def __init__(self, env, cell_size, info_height=200 ,info_width=400):
         self.env = env
         if cell_size is None:
         # 提供一个默认值
-            self.cell_size = 12
+            self.cell_size = 10
         else:
             self.cell_size = cell_size
         self.width, self.height = env.park_size
@@ -364,6 +391,7 @@ class ChargingVisualizer:
         self.time_step = 1.0      # 仿真物理时间步长
         self.paused = False
         self.need_restart = False
+        self.back_button = pygame.Rect((self.screen_width // 2 - 50), self.height * self.cell_size, 100, 50)  # “重新开始”按钮
     
     def draw_grid(self):
         for x in range(self.width + 1):
@@ -526,4 +554,14 @@ class ChargingVisualizer:
         self.draw_robots()
         self.draw_info(step, strategy)
         self.draw_legend()  # 新增图例
+        # 绘制重新开始按钮
+        pygame.draw.rect(self.screen, (180, 180, 180), self.back_button)
+        pygame.draw.rect(self.screen, (0, 0, 0), self.back_button, 2)
+        font = pygame.font.SysFont("hiraginosansgb", 18)
+        txt = font.render("重新开始", True, (0, 0, 0))
+        self.screen.blit(txt, (self.back_button.centerx - txt.get_width()//2, self.back_button.centery - txt.get_height()//2))
         pygame.display.flip()
+    
+    def handle_mouse_click(self, pos):
+        if self.back_button.collidepoint(pos):
+            return {"type": "back"}

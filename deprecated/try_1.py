@@ -4,6 +4,33 @@ import gym
 from gym import spaces
 import pickle 
 
+"""
+早期测试文件（已弃用）
+==========================================================
+本模块实现了基于 OpenAI Gym 框架的园区充电调度仿真环境，包含车辆(Car)、充电机器人(Robot)的定义、环境状态管理、任务分配与强化学习训练流程。
+
+主要功能：
+- 定义车辆(Car)和充电机器人(Robot)的属性与行为
+- 实现充电环境(ChargingEnv)的状态管理、任务分配与仿真流程
+- 支持环境的重置、状态观测、奖励计算和仿真步进
+- 集成 Q-learning 智能体进行强化学习训练与策略优化
+- 支持 Q 表的保存与加载
+
+设计说明：
+本模块适用于园区级自动充电调度的算法测试与强化学习研究。通过与 Gym 兼容的接口，可方便集成各类 RL 算法进行智能调度策略优化。
+
+用法示例：
+    env = ChargingEnv()
+    agent = QLearningAgent(env)
+    agent.train(episodes=1000)
+    pickle.dump(agent.q_table, open("q_table.pkl", "wb"))
+
+创建/维护者: 肖翔云
+创建日期: 2025-04-07
+最后修改: 2025-04-07
+版本: 0.0.1
+"""
+
 # 车辆类
 class Car:
     def __init__(self, id, arrival_time, departure_time, parking_spot, remaining_battery, required_battery, home_x = 0, home_y = 0):

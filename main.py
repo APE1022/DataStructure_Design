@@ -1,6 +1,10 @@
-from envs import ParkEnv
-from strategy import TaskStrategy
-from visualization_stable import ChargingVisualizer, StartupScreen
+from modules.envs import ParkEnv
+from modules.strategy import TaskStrategy
+from modules.visualization import ChargingVisualizer, StartupScreen
+from modules.qlearning_agent import QLearningAgent
+import pickle
+import os
+import sys
 import pygame
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_SPACE, MOUSEBUTTONDOWN, K_RETURN
 
@@ -13,7 +17,7 @@ def create_environment(map_size, time_step=1.0):
             'n_robots': 4,
             'n_vehicles': 10,
             'n_batteries': 3,
-            'generate_vehicles_probability': 0.005,
+            'generate_vehicles_probability': 0.005, # 以秒为单位，计算得每小时生成车辆的期望为 0.005 * 3600 = 18辆
             'cell_size': 11
         },
         'medium': {
@@ -21,15 +25,15 @@ def create_environment(map_size, time_step=1.0):
             'n_robots': 16,
             'n_vehicles': 40,
             'n_batteries': 12,
-            'generate_vehicles_probability': 0.02,
+            'generate_vehicles_probability': 0.02, # 以秒为单位，计算得每小时生成车辆的期望为 0.02 * 3600 = 72辆
             'cell_size': 5
         },
         'large': {
             'park_size': (500, 500),
             'n_robots': 40,
             'n_vehicles': 100,
-            'n_batteries': 30,
-            'generate_vehicles_probability': 0.05,
+            'n_batteries': 24,
+            'generate_vehicles_probability': 0.05, # 以秒为单位，计算得每小时生成车辆的期望为 0.05 * 3600 = 180辆
             'cell_size': 2
         }
     }
@@ -69,7 +73,17 @@ def main():
     
     # 创建初始环境
     env, cell_size = create_environment(current_map_size, current_time_step)
-    strategy = TaskStrategy(env, time_step=current_time_step)
+    # 创建 agent
+    agent = QLearningAgent(env)
+    # 动态选择 Q 表文件名
+    q_table_path = f"config/q_table/{current_map_size}_nearest_q_table.pkl"
+    if os.path.exists(q_table_path):
+        with open(q_table_path, "rb") as f:
+            agent.q_table = pickle.load(f)
+    else:
+        print(f"Q表文件不存在: {q_table_path}")
+        agent.q_table = None  # 或者给出提示
+    strategy = TaskStrategy(env, time_step=current_time_step, map_size=current_map_size, agent=agent)
     visualizer = ChargingVisualizer(env, cell_size=cell_size)
     
     # 设置初始UI状态
@@ -80,7 +94,7 @@ def main():
     
     # 仿真控制
     step = 0
-    max_steps = 20000
+    max_steps = 28800 / current_time_step
     running = True
     paused = False
     
@@ -99,51 +113,29 @@ def main():
                     visualizer.paused = paused
             elif event.type == MOUSEBUTTONDOWN:
                 result = visualizer.handle_mouse_click(event.pos)
-                if result:
-                    if result["type"] == "strategy":
-                        current_strategy = result["value"]
-                        if debug_mode:
-                            print(f"策略变更: {current_strategy}")
-                        
-                    elif result["type"] == "time_step":
-                        current_time_step = result["value"]
-                        strategy.time_step = current_time_step
-                        env.time_step = current_time_step
-                        if debug_mode:
-                            print(f"时间步长变更: {current_time_step}")
-                        
-                    elif result["type"] == "pause":
-                        paused = result["value"]
-                        if debug_mode:
-                            print("仿真已" + ("暂停" if paused else "继续"))
-                        
-                    elif result["type"] == "restart":
-                        if debug_mode:
-                            print(f"重建环境: {result['value']}，时间步长: {current_time_step}")
-                        
-                        # 保存当前设置
-                        old_strategy = visualizer.strategy
-                        old_map_size = result["value"]
-                        old_time_step = visualizer.time_step
-                        old_speed = visualizer.step_speed
-                        
-                        # 重建环境
-                        current_map_size = old_map_size
-                        env = create_environment(current_map_size, old_time_step)
-                        strategy = TaskStrategy(env, time_step=old_time_step)
-                        
-                        # 创建新的可视化器并恢复设置
-                        visualizer = ChargingVisualizer(env)
-                        visualizer.strategy = old_strategy
-                        visualizer.map_size = old_map_size
-                        visualizer.time_step = old_time_step
-                        visualizer.step_speed = old_speed
-                        
-                        # 重置计数和状态
-                        step = 0
-                        current_strategy = old_strategy
-                        current_time_step = old_time_step
-                        visualizer.paused = paused
+                if visualizer.back_button.collidepoint(event.pos):
+                    # 回到初始选择界面
+                    configs = StartupScreen().run()
+                    if configs is None:
+                        pygame.quit()
+                        return
+                    # 重新初始化环境和可视化器
+                    current_map_size = configs['map_size']
+                    current_strategy = configs['strategy']
+                    current_time_step = configs['time_step']
+                    step_speed = 11 - configs['speed']
+                    debug_mode = configs['debug']
+                    show_stats = configs['show_stats']
+                    env, cell_size = create_environment(current_map_size, current_time_step)
+                    strategy = TaskStrategy(env, time_step=current_time_step, map_size=current_map_size)
+                    visualizer = ChargingVisualizer(env, cell_size=cell_size)
+                    visualizer.strategy = current_strategy
+                    visualizer.map_size = current_map_size
+                    visualizer.time_step = current_time_step
+                    visualizer.step_speed = step_speed
+                    step = 0
+                    paused = False
+                    continue
         
         # 更新仿真
         if not paused:

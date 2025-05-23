@@ -1,14 +1,41 @@
 from models.battery import Battery
 from models.car import Car
 
+"""
+机器人模块 (Robot Module)
+=========================
+本模块实现了园区自动充电机器人的核心功能，用于描述机器人属性、运动、换电行为及与车辆的交互。
+
+主要功能：
+- 机器人位置、速度、状态管理
+- 支持机器人移动、换电、回库等行为
+- 管理机器人携带的电池对象
+- 与车辆对象的任务分配与充电协作
+- 能耗与换电流程模拟
+
+设计说明：
+机器人对象用于模拟园区内自动充电机器人的实际运行过程，支持多种状态切换（如前往车辆、放电、回库、换电等），并与车辆、电池对象紧密协作，实现智能调度与能量管理。
+
+用法示例：
+    robot = Robot(id=1, home_x=0, home_y=0)
+    robot.assign_task(car)
+    robot.update(time_step=1.0)
+    print(robot.state, robot.x, robot.y)
+
+创建/维护者: 姚炜博
+最后修改: 2025-05-23
+版本: 1.0.0
+"""
+
 class Robot:
     def __init__(self, id, home_x=0, home_y=0, speed=10, swap_time=120, target: Car = None):
         """
-        :param id: 机器人编号
-        :param home: 充电站/起点坐标
-        :param speed: 移动速度 m/s
-        :param swap_time: 换电时间（秒），默认2分钟
-        :param battery: 初始携带的电池对象
+        param：
+        id: 机器人编号
+        home: 充电站/起点坐标
+        speed: 移动速度 m/s
+        swap_time: 换电时间（秒），默认2分钟
+        battery: 初始携带的电池对象
         """
         self.id = id # 机器人编号
         self.x = home_x  # 当前位置

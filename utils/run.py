@@ -1,7 +1,9 @@
-from envs import ParkEnv
-from qlearning_agent import QLearningAgent
-import pickle
+import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from modules.envs import ParkEnv
+from modules.qlearning_agent import QLearningAgent
+import pickle
 
 def run_q_table_model(scale='small', strategy_choice=0, episodes=10):
     # 场景参数

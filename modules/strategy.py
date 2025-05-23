@@ -1,23 +1,47 @@
-# -*- coding: utf-8 -*-
-from qlearning_agent import QLearningAgent
+from modules.qlearning_agent import QLearningAgent
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-class TaskStrategy:
-    """
-    调度策略类，支持最近任务优先和最大任务优先
-    """
+"""
+调度策略模块 (Task Strategy Module)
+===================================
+本模块实现了园区充电调度系统的多种任务分配与调度策略，支持不同规模和复杂度的调度需求。
 
-    def __init__(self, env,time_step):
+主要功能：
+- 最近任务优先（匈牙利算法）：全局最小化机器人到车辆的总距离
+- 最大需求优先：优先为电量缺口最大的车辆分配最近机器人
+- 最大优先级分配：综合电量缺口与离开时间，优先为高优先级车辆分配
+- 遗传算法多目标优化：基于遗传算法优化权重的多目标分配
+- 强化学习分配：基于Q-learning的智能分配策略
+- 超启发式策略：根据环境状态动态选择最优底层调度策略
+
+设计说明：
+该模块通过面向对象方式封装了多种调度算法，便于灵活切换和扩展。支持静态启发式、元启发式、强化学习等多种分配方法，适用于不同规模和复杂度的仿真场景。
+
+用法示例：
+    strategy = TaskStrategy(env, time_step=1.0, map_size='medium')
+    strategy.update(strategy='nearest')
+    strategy.update(strategy='genetic')
+    strategy.update(strategy='hyper_heuristic')
+
+创建/维护者: 姚炜博、肖翔云（强化学习部分）
+最后修改: 2025-05-23
+版本: 1.0.0
+"""
+
+class TaskStrategy:
+    def __init__(self, env,time_step, map_size='small'):
         self.env = env
         self.time_step = time_step
+        self.map_size = map_size
         self.agent = QLearningAgent(env)
 
     def update(self, strategy='nearest', agent=None):
         """
         按时间步长更新调度与状态
         param :
-        strategy: 调度策略
+        strategy: 调度策略， 可选值为 'nearest', 'max_demand', 'max_priority', 'genetic', 'RL', 'multi_objective'
+        agent: Q表策略需要传入agent参数
         """
         # 先分配任务
         if strategy == 'nearest':
@@ -32,18 +56,11 @@ class TaskStrategy:
             if self.agent is None:
                 raise ValueError("Q表策略需要传入agent参数")
             self.q_table_task(self.agent)
-        elif strategy == 'battery_management':
-            self.battery_management_task()
-        elif strategy == 'cluster_service':
-            self.cluster_service_task()
-        elif strategy == 'multi_objective':
-            self.multi_objective_task()
-        elif strategy == 'reinforcement_learning':
-            self.reinforcement_learning_task()
-        elif strategy == 'dynamic':
-            self.dynamic_strategy_task()
+        elif strategy == 'hyper_heuristic':
+            self.hyper_heuristic_task()
         else:
             raise ValueError("Invalid strategy. Choose from available strategies.")
+        # 更新环境状态
         self.env.update(self.time_step)
 
     def nearest_task(self):
@@ -201,124 +218,111 @@ class TaskStrategy:
             if len(assigned_robots) >= len([r for r in self.env.robots if r.state == 'available']):
                 break
 
-    def genetic_task(self, population_size=20, generations=30, mutation_rate=0.1):
+    def genetic_task(self):
         """
-        遗传算法分配策略：为所有空闲机器人分配车辆，优化全局分配效果
+        使用遗传算法优化过的参数进行多目标任务分配
+        根据不同地图大小自动选择对应的最佳参数配置
         """
-        import random
-        import copy
-
+        # 预先通过遗传算法优化得到的最佳权重参数
+        optimized_weights = {
+            'small': {  # 小地图最佳权重
+                'urgency': 0.28,
+                'distance': 0.25,
+                'robot_energy': 0.08
+            },
+            'medium': {  # 中地图最佳权重
+                'urgency': 0.25,
+                'distance': 0.30,
+                'robot_energy': 0.07
+            },
+            'large': {  # 大地图最佳权重
+                'urgency': 0.47587022217849884,
+                'distance': 0.5241297778215013,  # 大地图中距离因素更重要
+                'robot_energy': 0
+            }
+        }
+        
+        # 根据当前地图大小确定使用的权重
+        map_size = self.map_size
+        weights = optimized_weights.get(map_size, optimized_weights['medium'])  # 默认使用中等地图权重
+        
         # 获取可用机器人和需要服务的车辆
-        robots = [r for r in self.env.robots if r.state == 'available']
-        vehicles = self.env.needcharge_vehicles
+        available_robots = [r for r in self.env.robots if r.state == 'available']
         
-        # 如果没有需要分配的资源，直接返回
-        if not robots or not vehicles:
+        # 如果没有可用资源，直接返回
+        if not available_robots or not self.env.needcharge_vehicles:
             return
         
-        # 定义染色体长度为机器人数量和车辆数量中的较小值
-        chrom_length = min(len(robots), len(vehicles))
+        # 计算每辆车的紧急度指标 (电量缺口/离开时间)
+        urgency_scores = {}
+        for vehicle in self.env.needcharge_vehicles:
+            urgency = vehicle.battery_gap / max(0.1, vehicle.departure_time)
+            urgency_scores[vehicle] = urgency
         
-        # 如果染色体长度太小，不适合遗传算法，直接用贪心算法
-        if chrom_length <= 1:
-            # 使用最近任务策略作为备选
-            for robot in robots:
-                if robot.state == 'available' and vehicles:
-                    # 找到最近的车辆
-                    min_dist = float('inf')
-                    closest_vehicle = None
-                    for vehicle in vehicles:
-                        dist = ((robot.x - vehicle.parking_spot[0])**2 + 
-                            (robot.y - vehicle.parking_spot[1])**2)**0.5
-                        if dist < min_dist:
-                            min_dist = dist
-                            closest_vehicle = vehicle
-                    
-                    if closest_vehicle:
-                        closest_vehicle.set_state('charging')
-                        robot.assign_task(closest_vehicle)
-                        vehicles.remove(closest_vehicle)
-            return
+        # 最大和最小值，用于标准化
+        max_urgency = max(urgency_scores.values()) if urgency_scores else 1
+               
+        # 为每个机器人-车辆对计算综合分数
+        assignments = []
         
-        # 正常的遗传算法流程
-        def create_chromosome():
-            return random.sample(range(len(vehicles)), chrom_length)
-        
-        def fitness(chromosome):
-            total_fitness = 0
-            for i, vehicle_idx in enumerate(chromosome):
-                if i < len(robots) and vehicle_idx < len(vehicles):
-                    robot = robots[i]
-                    vehicle = vehicles[vehicle_idx]
-                    
-                    dist = ((robot.x - vehicle.parking_spot[0])**2 + 
-                            (robot.y - vehicle.parking_spot[1])**2)**0.5
-                    
-                    urgency = vehicle.battery_gap / max(0.1, vehicle.departure_time)
-                    
-                    score = urgency / (dist + 1)
-                    total_fitness += score
-            return total_fitness
+        for robot in available_robots:
+            for vehicle in self.env.needcharge_vehicles:
+                # 计算因素并标准化到0-1范围
 
-        # 初始化种群
-        population = []
-        base = list(range(len(vehicles)))
-        for _ in range(population_size):
-            chromosome = random.sample(base, chrom_length)
-            population.append(chromosome)
-
-        for gen in range(generations):
-            # 计算适应度
-            scored = [(fitness(ch), ch) for ch in population]
-            scored.sort(reverse=True)
-            selected = [ch for _, ch in scored[:population_size // 2]]
-
-            # 交叉
-            children = []
-            while len(children) < population_size - len(selected):
-                p1, p2 = random.sample(selected, 2)
+                # 2. 紧急程度 - 越紧急越优先
+                urgency_score = urgency_scores[vehicle] / max_urgency
                 
-                # 修复：确保切分点在有效范围内
-                if chrom_length > 2:
-                    cut = random.randint(1, chrom_length - 1)
-                    child = p1[:cut] + [v for v in p2 if v not in p1[:cut]]
-                else:
-                    # 染色体长度为2，使用简单交换
-                    child = p2.copy()  # 直接使用另一个父本
+                # 3. 距离 - 越近越好（转换为1-距离的比例）
+                distance = ((robot.x - vehicle.parking_spot[0])**2 + 
+                        (robot.y - vehicle.parking_spot[1])**2)**0.5
+                max_possible_dist = ((self.env.park_size[0])**2 + (self.env.park_size[1])**2)**0.5
+                distance_score = 1 - (distance / max_possible_dist)
                 
-                # 确保子代长度正确
-                while len(child) < chrom_length:
-                    new_gene = random.choice(base)
-                    if new_gene not in child:
-                        child.append(new_gene)
-                        
-                # 如果子代过长，截断
-                if len(child) > chrom_length:
-                    child = child[:chrom_length]
-                    
-                children.append(child)
-
-            # 变异
-            for child in children:
-                if random.random() < mutation_rate:
-                    if chrom_length >= 2:  # 确保有足够的基因可以交换
-                        i, j = random.sample(range(chrom_length), 2)
-                        child[i], child[j] = child[j], child[i]
-
-            population = selected + children
-
-        # 取最优解
-        best_chromosome = max(population, key=fitness)
+                # 4. 机器人电量 - 越高越好
+                robot_energy_score = robot.battery.soc / 100
+ 
+                # 综合评分，使用优化过的权重
+                final_score = (
+                    weights['urgency'] * urgency_score +
+                    weights['distance'] * distance_score +
+                    weights['robot_energy'] * robot_energy_score
+                )
+                
+                # 存储评分和对应的机器人-车辆对
+                assignments.append((final_score, robot, vehicle))
         
-        # 分配任务
-        for i, v_idx in enumerate(best_chromosome):
-            if i < len(robots) and v_idx < len(vehicles):  # 确保索引有效
-                robot = robots[i]
-                vehicle = vehicles[v_idx]
-                vehicle.set_state('charging')
-                robot.assign_task(vehicle)
+        # 按分数从高到低排序
+        assignments = sorted(assignments, key=lambda x: x[0], reverse=True)
+        
+        # 记录已分配的资源
+        assigned_robots = set()
+        assigned_vehicles = set()
+        
+        # 执行分配
+        for score, robot, vehicle in assignments:
+            # 如果机器人或车辆已被分配，跳过
+            if robot in assigned_robots or vehicle in assigned_vehicles:
+                continue
+                
+            # 执行分配
+            vehicle.set_state('charging')
+            robot.assign_task(vehicle)
+            
+            # 标记为已分配
+            assigned_robots.add(robot)
+            assigned_vehicles.add(vehicle)
+            
+            # 更新环境中的车辆列表
+            if vehicle in self.env.needcharge_vehicles:
+                self.env.needcharge_vehicles.remove(vehicle)
+                self.env.charging_vehicles.append(vehicle)
+            
+            # 如果所有机器人都已分配，结束
+            if len(assigned_robots) >= len(available_robots):
+                break
     
     def q_table_task(self, agent):
+
         """
         基于Q表的推理分配策略：每步直接选择Q值最大的动作（机器人-车辆对）
         """
@@ -362,3 +366,20 @@ class TaskStrategy:
             if car in self.env.needcharge_vehicles:
                 self.env.needcharge_vehicles.remove(car)
                 self.env.charging_vehicles.append(car)
+
+    # TODO：未完善
+    def hyper_heuristic_task(self):
+        """
+        超启发式策略选择：根据环境状态动态选择最合适的底层调度策略
+        可选策略包括最近任务优先、最大需求优先、最大优先级、遗传算法、强化学习等
+        """
+        # 示例：根据当前待充电车辆数量和机器人空闲比例动态选择策略
+        n_vehicles = len(self.env.needcharge_vehicles)
+        n_robots = len([r for r in self.env.robots if r.state == 'available'])
+
+        # 简单规则：车辆多时用最高优先级，车辆少时用最近任务优先
+        if n_vehicles > n_robots:
+            self.max_priority_task()  # 匈牙利算法，全局最优分配
+        else: 
+            self.nearest_task()  # 多目标加权分配
+

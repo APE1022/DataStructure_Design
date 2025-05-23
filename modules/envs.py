@@ -5,6 +5,31 @@ from models.robot import Robot
 from models.battery import Battery
 from models.battery_station import BatteryStation
 
+"""
+园区充电调度环境模块 (ParkEnv Module)
+====================================
+本模块实现了园区自动充电机器人调度的核心环境类 ParkEnv，负责管理机器人、车辆、电池站等对象，并提供环境状态的更新与查询接口。
+
+主要功能：
+- 初始化园区环境，包括机器人、电池站、车辆等对象的创建与管理
+- 支持车辆的随机生成与状态转移（待充电、充电中、完成、失败等）
+- 管理机器人与车辆的任务分配、状态更新与交互
+- 电池站的充电与换电流程模拟
+- 提供环境状态的查询接口，便于与调度策略、强化学习等模块集成
+
+设计说明：
+本模块采用面向对象设计，所有实体对象（机器人、车辆、电池站）均为独立类，环境负责统一调度和状态管理。支持灵活扩展不同规模和复杂度的仿真场景，便于与可视化、策略、智能体等模块协同工作。
+
+用法示例：
+    env = ParkEnv(park_size=(100, 100), n_robots=4, n_vehicles=10, n_batteries=3, time_step=1.0, generate_vehicles_probability=0.01)
+    env.update(time_step=1.0)
+    status = env.get_status()
+
+创建/维护者: 姚炜博
+最后修改: 2025-05-23
+版本: 1.0.0
+"""
+
 class ParkEnv:
     """
     园区自动充电机器人调度环境

@@ -1,8 +1,10 @@
-from envs import ParkEnv
-from strategy import TaskStrategy
-from tqdm import tqdm
-from qlearning_agent import QLearningAgent
+import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from modules.envs import ParkEnv
+from modules.strategy import TaskStrategy
+from tqdm import tqdm
+from modules.qlearning_agent import QLearningAgent
 import pickle
 print("当前工作目录:", os.getcwd())
 def train_model(env, choice, scale, episodes=1000, max_steps=100, log_interval=10):
