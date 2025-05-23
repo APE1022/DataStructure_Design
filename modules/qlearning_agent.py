@@ -21,14 +21,27 @@ class QLearningAgent:
         self.q_table = np.zeros((self.state_size, self.action_size))
 
     def discretize_state(self, state):
-        # 以所有机器人和所有待充电车辆的 soc 平均值为特征
+        # 机器人和车辆soc
         robot_socs = [int(r.battery.soc) for r in self.env.robots]
         car_socs = [int(c.battery.soc) for c in self.env.needcharge_vehicles]
         avg_robot_soc = int(np.mean(robot_socs)) if robot_socs else 0
         avg_car_soc = int(np.mean(car_socs)) if car_socs else 0
-        idx = (avg_robot_soc // 10) * 10 + (avg_car_soc // 10)
-        return idx % self.state_size
 
+        # 车辆所需电量gap和离开时间
+        car_gaps = [int(getattr(c, "battery_gap", 0)) for c in self.env.needcharge_vehicles]
+        car_departures = [int(getattr(c, "departure_time", 0)) for c in self.env.needcharge_vehicles]
+        avg_gap = int(np.mean(car_gaps)) if car_gaps else 0
+        avg_departure = int(np.mean(car_departures)) if car_departures else 0
+
+        # 分桶，组合为状态索引
+        idx = (
+            (avg_robot_soc // 10) * 1000 +
+            (avg_car_soc // 10) * 100 +
+            (avg_gap // 10) * 10 +
+            (avg_departure // 1000)
+        )
+        return idx % self.state_size  # 保证不越界
+    
     def choose_action(self, state):
         state_idx = self.discretize_state(state)
         valid_actions = []
@@ -139,16 +152,16 @@ class QLearningAgent:
         completed_reward = 100
         failed_reward = -80  # 失败惩罚更大
         max_gap = 95
-        min_departure = 7200
+        min_departure = 2700
         for car in self.env.failed_vehicles:
             if not hasattr(car, "counted") or car.counted == 0:
-                urgency = (car.static_battery_gap / max_gap) / ((car.departure_time + 1) / min_departure)
+                urgency = (car.battery_gap / max_gap) / ((car.departure_time + 1) / min_departure)
                 urgency = min(urgency, 2)
                 reward += failed_reward * (urgency ** 1.2)
                 car.counted = 1
         for car in self.env.completed_vehicles:
             if not hasattr(car, "counted") or car.counted == 0:
-                urgency = (car.static_battery_gap / max_gap) / ((car.departure_time + 1) / min_departure)
+                urgency = (car.battery_gap / max_gap) / ((car.departure_time + 1) / min_departure)
                 urgency = min(urgency, 2)
                 reward += completed_reward * urgency
                 car.counted = 1

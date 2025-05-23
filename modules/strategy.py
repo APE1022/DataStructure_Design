@@ -30,11 +30,11 @@ from scipy.optimize import linear_sum_assignment
 """
 
 class TaskStrategy:
-    def __init__(self, env,time_step, map_size='small'):
+    def __init__(self, env, time_step, map_size='small', agent=None):
         self.env = env
         self.time_step = time_step
         self.map_size = map_size
-        self.agent = QLearningAgent(env)
+        self.agent = agent 
 
     def update(self, strategy='nearest', agent=None):
         """

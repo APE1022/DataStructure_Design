@@ -68,6 +68,14 @@ def evaluate_model(env, agent, n_episodes=100):
     else:
         print(f"平均完成率: {(avg_completed/(avg_completed+avg_failed))*100:.2f}%")
 
+def train_single_episode(args):
+    env_params, strategy_choice, max_steps = args
+    # 重新创建环境和 agent，避免进程间冲突
+    env = ParkEnv(**env_params)
+    agent = QLearningAgent(env)
+    agent.train(strategy_choice, episodes=1, max_steps=max_steps, log_interval=0, debug=False)
+    return agent.q_table
+
 def main():
     print("请选择场景规模：small, medium, large")
     scale = input().strip().lower()
@@ -76,16 +84,19 @@ def main():
         n_robots = 4
         n_vehicles = 10
         n_batteries = 3
+        generate_vehicles_probability = 0.005 # 以秒为单位，计算得每小时生成车辆的期望为 0.005 * 3600 = 18辆
     elif scale == 'medium':
         park_size = (100, 100)
         n_robots = 16
         n_vehicles = 40
         n_batteries = 12
+        generate_vehicles_probability = 0.02
     elif scale == 'large':
         park_size = (200, 200)
         n_robots = 40
         n_vehicles = 100
         n_batteries = 30
+        generate_vehicles_probability = 0.05
     else:
         print("输入无效，默认使用small规模")
         scale = 'small'
@@ -98,7 +109,8 @@ def main():
                   n_robots=n_robots, 
                   n_vehicles=n_vehicles, 
                   n_batteries=n_batteries,
-                  time_step=0.1)
+                  time_step=0.1,
+                  generate_vehicles_probability=generate_vehicles_probability)
 
     print("请选择调度策略：0.最近任务优先 1.最大任务优先")
     strategy_choice = int(input().strip())
