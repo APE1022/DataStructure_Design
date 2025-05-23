@@ -156,7 +156,7 @@ class StartupScreen:
             self.configs['strategy'],
             {'nearest': '最近任务', 'max_demand': '最大需求', 
              'max_priority': '最高优先级', 'genetic': '遗传算法', 
-             'hyper_heuristic': '多目标优化', 'RL': '强化学习'}
+             'hyper_heuristic': '超启发算法', 'RL': '强化学习'}
         )
         
         # 绘制时间步长选择
@@ -415,7 +415,7 @@ class ChargingVisualizer:
                 color = (0, 0, 255)  # 蓝色 - 其他状态
             pygame.draw.circle(self.screen, color, (x, y), max(5, self.cell_size // 2))
             txt = self.font.render(f"R{getattr(robot, 'id', '?')}", True, (0, 0, 0))
-            self.screen.blit(txt, (x - self.cell_size, y + self.cell_size // 2))
+            self.screen.blit(txt, (x - self.cell_size, y + 6))
 
     def draw_legend(self):
         # 图例区域右下角
@@ -452,7 +452,7 @@ class ChargingVisualizer:
             size = max(5, int(self.cell_size * 0.4))
             pygame.draw.rect(self.screen, color, (x - size // 2, y - size // 2, size, size))
             txt = self.font.render(f"C{getattr(vehicle, 'id', '?')}", True, (0, 0, 0))
-            self.screen.blit(txt, (x - self.cell_size, y - self.cell_size // 2))
+            self.screen.blit(txt, (x - self.cell_size, y - 20))
 
     # TODO: 需要改变显示位置，电池多了可能需要只显示nonfull
     def draw_battery_station(self):
@@ -530,6 +530,14 @@ class ChargingVisualizer:
 
     def draw_info(self, step, strategy="nearest"):
         info_y = self.height * self.cell_size + 10
+
+        # 计算平均等待时间
+        all_vehicles = self.env.charging_vehicles + self.env.completed_vehicles + self.env.failed_vehicles
+        if all_vehicles:
+            avg_wait = sum(getattr(v, "waittime", 0) for v in all_vehicles) / (len(all_vehicles) + 0.0001)
+        else:
+            avg_wait = 0
+
         lines = [
             f"Strategy: {strategy}",
             f"Time: {self.env.time:.1f}s",
@@ -539,6 +547,7 @@ class ChargingVisualizer:
             f"Completed: {len(self.env.completed_vehicles)}",
             f"Failed: {len(self.env.failed_vehicles)}",
             f"TotalVehicles: {self.env.vehicles_index}",
+            f"AvgWaitTime: {avg_wait:.1f}s",  # 新增平均等待时间
             # f"TotalReward: {getattr(self.env, 'total_reward', 0):.1f}",
         ]
         for i, line in enumerate(lines):

@@ -69,7 +69,7 @@ class BatteryStation:
         if not self.batteries:
             return None
         battery_out = max(self.batteries, key=lambda b: b.soc)
-        battery_out.set_state('nonfull')
+        # battery_out.set_state('nonfull')
         self.batteries.remove(battery_out)
         return battery_out
 

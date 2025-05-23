@@ -36,7 +36,7 @@ class TaskStrategy:
         self.map_size = map_size
         self.agent = agent 
 
-    def update(self, strategy='nearest', agent=None):
+    def update(self, strategy='nearest'):
         """
         按时间步长更新调度与状态
         param :

@@ -17,15 +17,15 @@ def create_environment(map_size, time_step=1.0):
             'n_robots': 4,
             'n_vehicles': 10,
             'n_batteries': 3,
-            'generate_vehicles_probability': 0.005, # 以秒为单位，计算得每小时生成车辆的期望为 0.005 * 3600 = 18辆
+            'generate_vehicles_probability': 0.003056, # 以秒为单位，计算得每小时生成车辆的期望为11辆
             'cell_size': 11
         },
         'medium': {
             'park_size': (200, 200),
             'n_robots': 16,
             'n_vehicles': 40,
-            'n_batteries': 12,
-            'generate_vehicles_probability': 0.02, # 以秒为单位，计算得每小时生成车辆的期望为 0.02 * 3600 = 72辆
+            'n_batteries': 10,
+            'generate_vehicles_probability': 0.011667, # 以秒为单位，计算得每小时生成车辆的期望为42辆
             'cell_size': 5
         },
         'large': {
@@ -33,7 +33,7 @@ def create_environment(map_size, time_step=1.0):
             'n_robots': 40,
             'n_vehicles': 100,
             'n_batteries': 24,
-            'generate_vehicles_probability': 0.05, # 以秒为单位，计算得每小时生成车辆的期望为 0.05 * 3600 = 180辆
+            'generate_vehicles_probability': 0.029167, # 以秒为单位，计算得每小时生成车辆的期望为105辆
             'cell_size': 2
         }
     }
@@ -73,10 +73,11 @@ def main():
     
     # 创建初始环境
     env, cell_size = create_environment(current_map_size, current_time_step)
+
     # 创建 agent
     agent = QLearningAgent(env)
     # 动态选择 Q 表文件名
-    q_table_path = f"config/q_table/{current_map_size}_nearest_q_table.pkl"
+    q_table_path = f"config/q_table/{current_map_size}_most_q_table.pkl"
     if os.path.exists(q_table_path):
         with open(q_table_path, "rb") as f:
             agent.q_table = pickle.load(f)
@@ -94,7 +95,7 @@ def main():
     
     # 仿真控制
     step = 0
-    max_steps = 28800 / current_time_step
+    max_steps = 28800 // current_time_step
     running = True
     paused = False
     
@@ -136,7 +137,8 @@ def main():
                     step = 0
                     paused = False
                     continue
-        
+        if step == max_steps -1:
+            paused = True
         # 更新仿真
         if not paused:
             strategy.update(strategy=current_strategy)
@@ -148,13 +150,13 @@ def main():
                     print(status)
                 
             step += 1
-        
+
         # 渲染
         visualizer.render(step, current_strategy)
         
         # 控制帧率
         clock.tick(60)
-    
+
     pygame.quit()
 
 
