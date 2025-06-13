@@ -19,8 +19,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from modules.envs import ParkEnv
 from modules.strategy import TaskStrategy
 
-# 接下来是原有代码
-
 class GeneticOptimizer:
     """遗传算法优化器，用于寻找多目标任务调度的最优权重参数"""
     
@@ -115,7 +113,7 @@ class GeneticOptimizer:
             
             # 运行仿真
             for step in range(num_steps):
-                strategy.update(strategy='multi_objective')
+                strategy.update(strategy='genetic')
             
             # 最终状态统计
             final_stats = {
@@ -488,11 +486,11 @@ def main():
     if __name__ == "__main__":
         # 定义环境配置
         env_config = {
-            'park_size': (500, 500),
-            'n_robots': 40,
-            'n_vehicles': 100,
-            'n_batteries': 30,
-            'generate_vehicles_probability': 0.05,
+            'park_size': (200, 200),
+            'n_robots': 16,
+            'n_vehicles': 40,
+            'n_batteries': 10,
+            'generate_vehicles_probability': 0.011667, # 以秒为单位，计算得每小时生成车辆的期望为42辆
             'time_step': 10,         # 时间步长(秒)
         }
         

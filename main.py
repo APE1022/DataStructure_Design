@@ -18,7 +18,7 @@ def create_environment(map_size, time_step=1.0):
             'n_vehicles': 10,
             'n_batteries': 3,
             'generate_vehicles_probability': 0.003056, # 以秒为单位，计算得每小时生成车辆的期望为11辆
-            'cell_size': 11
+            'cell_size': 7.4
         },
         'medium': {
             'park_size': (200, 200),
@@ -26,7 +26,7 @@ def create_environment(map_size, time_step=1.0):
             'n_vehicles': 40,
             'n_batteries': 10,
             'generate_vehicles_probability': 0.011667, # 以秒为单位，计算得每小时生成车辆的期望为42辆
-            'cell_size': 5
+            'cell_size': 3.7
         },
         'large': {
             'park_size': (500, 500),
@@ -34,7 +34,9 @@ def create_environment(map_size, time_step=1.0):
             'n_vehicles': 100,
             'n_batteries': 24,
             'generate_vehicles_probability': 0.029167, # 以秒为单位，计算得每小时生成车辆的期望为105辆
-            'cell_size': 2
+            'cell_size': 1.5
+        
+
         }
     }
     

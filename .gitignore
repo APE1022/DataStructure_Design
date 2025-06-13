@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 output.txt
 optimization_results/
+video/
+.DS_Store

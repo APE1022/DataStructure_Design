@@ -71,3 +71,6 @@
 
 ## 策略
 - **nearest_task**：遍历机器人，给空闲机器人分配最近的'needcharge'车辆,更改车辆状态为'charging'
+
+## 环境配置
+使用requirement.txt

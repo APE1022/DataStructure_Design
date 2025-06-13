@@ -226,14 +226,14 @@ class TaskStrategy:
         # 预先通过遗传算法优化得到的最佳权重参数
         optimized_weights = {
             'small': {  # 小地图最佳权重
-                'urgency': 0.28,
-                'distance': 0.25,
-                'robot_energy': 0.08
+                'urgency': 0.5777181040839903,
+                'distance': 0.4222818959160098,
+                'robot_energy': 0
             },
             'medium': {  # 中地图最佳权重
-                'urgency': 0.25,
-                'distance': 0.30,
-                'robot_energy': 0.07
+                'urgency': 0.5314551533131744,
+                'distance': 0.46854484668682556,
+                'robot_energy': 0
             },
             'large': {  # 大地图最佳权重
                 'urgency': 0.47587022217849884,
