@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
+import matplotlib
+matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS', "hiraginosansgb", "songti", "stheitimedium", "simhei"]
+matplotlib.rcParams['axes.unicode_minus'] = False
 
-# 设置中文字体支持
-plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
-plt.rcParams['axes.unicode_minus'] = False    # 用来正常显示负号
 
-def simulate_charging_curve(voltage, capacity_kwh=80, initial_soc=10, max_c_rate=3):
+def simulate_charging_curve(voltage, capacity_kwh=100, initial_soc=10, max_c_rate=3):
     """
     模拟电动汽车电池充电曲线
     
