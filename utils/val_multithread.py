@@ -1,4 +1,6 @@
+import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,7 +15,7 @@ from modules.qlearning_agent import QLearningAgent
 
 STRATEGIES = ['nearest', 'max_demand', 'max_priority', 'genetic', 'hyper_heuristic', 'RL']
 N_TESTS = 100
-MAP_SIZE = 'medium'
+MAP_SIZE = 'small'
 MAX_WORKERS = 8
 
 def create_environment(map_size, time_step=10):
@@ -87,14 +89,14 @@ def main():
     plt.bar(x, avg_waits, color='skyblue')
     plt.xticks(x, STRATEGIES, rotation=30)
     plt.ylabel("平均等待时间 (s)")
-    plt.title("中等规模环境各算法平均等待时间对比（100轮）")
+    plt.title("小规模环境各算法平均等待时间对比（100轮）")
 
     plt.subplot(1,2,2)
     plt.bar(x, success_rates, color='orange')
     plt.xticks(x, STRATEGIES, rotation=30)
     plt.ylabel("成功率")
-    plt.title("中等规模环境各算法成功率对比（100轮）")
-    plt.ylim(0.9, 1.0)
+    plt.title("小规模环境各算法成功率对比（100轮）")
+    plt.ylim(0.85, 1.0)
     plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
 
     plt.tight_layout()
